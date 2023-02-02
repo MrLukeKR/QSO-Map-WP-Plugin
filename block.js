@@ -5,59 +5,89 @@ wp.blocks.registerBlockType('m0lxx/qsomap', {
 
    title: 'QSO Map', // Block name visible to user
 
+   description: 'An ADIF log to QSO map tool by M0LXX',
+
    icon: 'location', // Toolbar icon can be either using WP Dashicons or custom SVG
 
    category: 'common', // Under which category the block would appear
 
+   keywords: [ 'amateur', 'radio', 'qso', 'map', 'mapping' ],
+
    attributes: { // The data this block will be storing
 
-      type: { type: 'string', default: 'default' }, // Notice box type for loading the appropriate CSS class. Default class is 'default'.
+      locator: { 
+         type: 'string',
+         source: 'meta',
+         meta: 'locator'
+      },
 
-      title: { type: 'string' }, // Notice box title in h4 tag
-
-      content: { type: 'array', source: 'children', selector: 'p' } /// Notice box content in p tag
+      logfile: { 
+         type: 'string',
+      },
 
    },
 
    edit: function(props) {
       // How our block renders in the editor in edit mode
-   
-      function updateMap( event ) {
-         props.setAttributes( { title: event.target.value } );
+      function updateLocator( event ) {
+         props.setAttributes( { locator: event.target.value } );
       }
-   
-      return el( 'div',
+
+      return [
+         el( 'div',
          {
-            className: 'notice-box notice-' + props.attributes.type
-         },
-         el(
-            'h4',
-            null,
-            "QSO Map",
-         ),
-         el('span',
-            null,        
-            el(
-               'p',
-               null,
-               "Select ADIF File:"
+            className: 'qsomap-container'
+         },         
+         [
+            el('h3',
+            {},
+            'QSO Map'
             ),
-            el(
-               'input',
-               {
-                  type: 'file',
-                  style: { width: '100%' }
-               }
-            )
-         ),
-         el(
-            'div',
-            {
-               classname: 'leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom',
-            },
-            null
+            el('p',
+            { className: 'components-placeholder__instructions' },
+            'Upload an ADIF log file or link to a hosted log file with a URL.'),
+            el('div',
+            { className: 'components-form-file-upload' },
+            [
+               el('button',
+            { className: 'components-button block-editor-media-placeholder__button block-editor-media-placeholder__upload-button is-primary' },
+            'Upload ADIF'),
+            el('button',
+            { className: 'components-button block-editor-media-placeholder__button is-tertiary' },
+            'Insert from URL')
+            ]
+            ),
+            
+
+            
+            el( 'div',
+             {
+                id: 'qsomap',
+             },
+             null
          )
-      ); // End return
+         ],
+         
+         el(wp.editor.InspectorControls,
+            {},
+            el(
+                wp.components.PanelBody,
+                {},
+                el(
+                  wp.components.TextControl,
+                    {
+                        label: 'QTH Maidenhead Locator',
+                        value: props.attributes.locator,
+                        onChange: function(e){
+                            props.setAttributes({ locator: e });
+                        }
+                    }
+                )
+            )   
+
+         )
+      )
+   ]; // End return
    
    },  // End edit()
 
@@ -65,20 +95,16 @@ wp.blocks.registerBlockType('m0lxx/qsomap', {
       // How our block renders on the frontend
    
       return el( 'div',
+      {
+         className: 'qsomap-container'
+      },
+      el(
+         'div',
          {
-            className: 'notice-box notice-' + props.attributes.type
+            id: 'qsomap',
          },
-         el(
-            'h4',
-            null,
-            props.attributes.title
-         ),
-         el( wp.editor.RichText.Content, {
-            tagName: 'p',
-            value: props.attributes.content
-         })
-   
-      ); // End return
-   
+         null
+      )
+   ); // End return
    } // End save()
 });

@@ -74,28 +74,71 @@ function qsomap_plugin_setting_api_key() {
 
 // Load assets for wp-admin when editor is active
 function m0lxx_qsomap_block_admin() {
+    
+    wp_enqueue_style(
+        'qsomap-leaflet',
+        plugins_url( 'assets/css/leaflet.css', __FILE__ ),
+        array(),
+        null,
+        true
+     );
+
+     wp_enqueue_script(
+        'qsomap-leaflet',
+        plugins_url( 'assets/js/leaflet.js', __FILE__ ),
+        array()
+     );
+
     wp_enqueue_script(
        'm0lxx-qsomap-block-editor',
        plugins_url( 'block.js', __FILE__ ),
        array( 'wp-blocks', 'wp-element' )
     );
- 
+
     wp_enqueue_style(
        'm0lxx-qsomap-block-editor',
        plugins_url( 'block.css', __FILE__ ),
        array()
     );
+
+    wp_enqueue_script(
+        'qsomap',
+        plugins_url( 'qsomap.js', __FILE__ ),
+        array( 'm0lxx-qsomap-block-editor', 'qsomap-leaflet' ),
+        1.0,
+        true
+     );
  }
- 
  add_action( 'enqueue_block_editor_assets', 'm0lxx_qsomap_block_admin' );
+ 
  
  // Load assets for frontend
  function m0lxx_qsomap_block_frontend() {
  
+    wp_enqueue_script(
+        'qsomap-leaflet',
+        plugins_url( 'assets/js/leaflet.js', __FILE__ ),
+        array()
+     );
+
     wp_enqueue_style(
        'm0lxx-qsomap-block-editor',
        plugins_url( 'block.css', __FILE__ ),
        array()
     );
+
+    wp_enqueue_style(
+        'qsomap-leaflet',
+        plugins_url( 'assets/css/leaflet.css', __FILE__ ),
+        array()
+     );
+
+     wp_enqueue_script(
+        'qsomap',
+        plugins_url( 'qsomap.js', __FILE__ ),
+        array( 'qsomap-leaflet' ),
+        1.0,
+        true
+     );
  }
  add_action( 'wp_enqueue_scripts', 'm0lxx_qsomap_block_frontend' );
