@@ -1,7 +1,9 @@
+import L from 'leaflet'
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
-const { MediaUpload, MediaUploadCheck } = wp.blockEditor
-const { FormFileUpload, Button } = wp.components;
+const { InspectorControls } = wp.blockEditor
+const { FormFileUpload, Button, PanelBody, ToggleControl } = wp.components
+
 
 registerBlockType('m0lxx-qsomap/qsomap', {
     title: __('QSO Map'), // Block name visible to user
@@ -26,11 +28,14 @@ registerBlockType('m0lxx-qsomap/qsomap', {
     },
 
     attributes: { // The data this block will be storing
-        logfile: {
-            type: 'object',
-            selector: 'js-qso-map-logfile'
+        logs: {
+            type: 'string'
         },
         uploading: {
+            type: 'boolean',
+            value: false
+        },
+        showHeatmap: {
             type: 'boolean'
         }
     },
@@ -40,7 +45,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { attributes, className, setAttributes } = props
 
         // Pull out specific attributes for clarity below
-        const { logfile, uploading } = attributes
+        const { logfile, uploading, showHeatmap } = attributes
 
         return (
             <div className={className}>
@@ -49,28 +54,42 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                 <FormFileUpload
                 accept=".adi,.adif"
                 onChange={ ( event ) => { 
-                    props.setAttributes({uploading: true})
-                    uploadLogFile(event)
+                    props.setAttributes({ uploading: true })
+                    uploadLogFile(event, props)
                  } }
                 render={ ( { openFileDialog } ) => (
                     <div className="inline">
                         <Button 
                         isPrimary 
-                        isBusy={ props.attributes.uploading }
-                        disabled={ props.attributes.uploading }
+                        isBusy={ uploading }
+                        disabled={ uploading }
                         onClick={ () => openFileDialog() }>
-                            { !props.attributes.uploading ? "Upload Log" : "Uploading"}
+                            { !uploading ? "Upload Log" : "Uploading"}
                         </Button>
                         <Button 
                         isSecondary
-                        disabled={ props.attributes.uploading }
+                        disabled={ uploading }
                         onClick={ null }>
                             Insert from URL
                         </Button>
                     </div>
                 )}
                 >
+                <div id="qsomap">
+
+                </div>
                 </FormFileUpload>
+                <InspectorControls>
+                    <PanelBody title="Settings" initialOpen={ true }>
+                        <ToggleControl
+                            label="Show Heatmap"
+                            checked={ showHeatmap }
+                            onChange={() => setAttributes({ showHeatmap: !showHeatmap })}
+                        >
+                        </ToggleControl>
+                    </PanelBody>
+                </InspectorControls>
+                <div id="qsomap"></div>
             </div>
         )        
     }, // End edit()
@@ -88,7 +107,40 @@ registerBlockType('m0lxx-qsomap/qsomap', {
     } // End save()
 });
 
-function uploadLogFile(event){
-    console.log(event.currentTarget.files);
+function uploadLogFile(event, props){
+    
+    var fr=new FileReader();
+    fr.onload=function(){
+        props.attributes.logs = parseLogFile(fr.result)
+        generateMap(props.attributes.logfile)
+    }
+      
+    fr.readAsText(event.currentTarget.files[0])
 
+    props.setAttributes({ uploading: false })
+}
+
+function parseLogFile(logfileContents) {
+    const records = logfileContents.split("<EOH>")[1].split("<EOR>")
+    
+    records.forEach( (record) => {
+        var dict = {}
+        var sep = record.split("<")
+        sep = sep.splice(1)
+        sep.forEach((rec) => {
+            dict[rec.split(':')[0]] = rec.split(">")[1].trim()
+        })
+        console.log(dict)
+        
+    });
+
+    return null;
+}
+
+function generateMap(logs) {
+    var map = L.map('qsomap').setView([51.505, -0.09], 13)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
 }
