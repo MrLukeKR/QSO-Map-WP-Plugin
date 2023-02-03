@@ -1,0 +1,6 @@
+.production-only { display: block; }
+
+#qsomap { height: 500px; }
+
+.qsomap-container { width:100%; }
+.hidden-file-input { display: none; }
