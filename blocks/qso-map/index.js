@@ -1,5 +1,4 @@
-import L from 'leaflet'
-import '@elfalem/leaflet-curve'
+import L from "leaflet";
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
@@ -56,7 +55,10 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         },
         showHeatmap: {
             type: 'boolean'
-        }
+        },
+        showStatistics: {
+            type: 'boolean'
+        },
     },
 
     edit: props => {
@@ -64,7 +66,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { attributes, className, setAttributes } = props
 
         // Pull out specific attributes for clarity below
-        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, uploading, showHeatmap, logs } = attributes
+        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, uploading, showHeatmap, showStatistics, logs } = attributes
 
         if (logs.length > 0) waitForElm('#qsomap').then(() => { generateMap(logs, props) })
 
@@ -112,6 +114,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                             label="Show Heatmap"
                             checked={ showHeatmap }
                             onChange={() => setAttributes({ showHeatmap: !showHeatmap })}
+                        >
+                        </ToggleControl>
+                        <ToggleControl
+                            label="Show Statistics"
+                            checked={ showStatistics }
+                            onChange={() => setAttributes({ showStatistics: !showStatistics })}
                         >
                         </ToggleControl>
                     </PanelBody>
@@ -202,6 +210,7 @@ function parseLogFile(logfileContents) {
 
 var map = null
 var qthMarker = null
+var pathLines = []
 
 function generateMap(logs, props) {
     if (map != null) return
@@ -220,16 +229,21 @@ function generateMap(logs, props) {
     }).addTo(map);
 
     var bounds = []
-    qthMarker = L.marker(stationCoords, { title: "QTH (" + myCall + ")" }).addTo(map);
+    qthMarker = L.marker(stationCoords, { title: "QTH (" + myCall + ")", draggable: true }).addTo(map);
+    qthMarker.on('dragend', () => { 
+        var latln = qthMarker.getLatLng()
+        updateQTHLocation(latln['lat'], latln['lng'])
+        props.setAttributes({ qthLatitude: latln['lat'], qthLongitude: latln['lng']})
+    })
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']
         if (grid && grid != 'null') {
             var coords = gridToCoord(grid)
-            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] }).addTo(map)
+            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
             bounds.push(coords)
             props.setAttributes({ qthLatitude: stationCoords[0], qthLongitude: stationCoords[1]})
             props.setAttributes({ originalQthLatitude: stationCoords[0], originalQthLongitude: stationCoords[1]})
-            //generateCurve(map, stationCoords, coords)
+            generateCurve(stationCoords, coords, log['MODE'], log['BAND'])
         }
     })
 
@@ -237,7 +251,7 @@ function generateMap(logs, props) {
 }
 
 
-function generateCurve(map, latlng1, latlng2) {
+function generateCurve(latlng1, latlng2, mode, band) {
 var offsetX = latlng2[1] - latlng1[1],
 	offsetY = latlng2[0] - latlng1[0];
 
@@ -256,36 +270,36 @@ var midpointLatLng = [midpointY, midpointX];
 
 //latlngs.push(latlng1, midpointLatLng, latlng2);
 
-var pathOptions = {
-	color: 'rgba(255,255,255,0.5)',
-	weight: 2
-}
 
-if (typeof document.getElementById('qsomap').animate === "function") { 
-	var durationBase = 2000;
-   	var duration = Math.sqrt(Math.log(r)) * durationBase;
-	// Scales the animation duration so that it's related to the line length
-	// (but such that the longest and shortest lines' durations are not too different).
-   	// You may want to use a different scaling factor.
-  	pathOptions.animate = {
-		duration: duration,
-		iterations: Infinity,
-		easing: 'ease-in-out',
-		direction: 'alternate'
-	}
-}
-
-var curvedPath = L.curve(
+    var line = L.polyline(
 	[
-		'M', latlng1,
-		'Q', midpointLatLng,
-			 latlng2
-	], pathOptions).addTo(map);
+		latlng1,
+		latlng2
+	], 
+    {
+        color: bandToColour(band),
+        weight: 1, 
+        dashArray: 4
+    }).addTo(map);
+
+    pathLines.push(line)
+}
+
+function bandToColour(band){
+    switch(band) {
+        case "20m":
+            return 'red'
+        case "40m":
+            return 'magenta'
+        case "2m":
+            return 'blue'
+        case "70cm":
+            return 'green'
+    }
 }
 
 function gridToCoord(grid) {
     var sanitisedGrid = sanitiseGrid(grid)
-    console.log("Converting Grid '" + sanitisedGrid + "' to Lat/Long...")
 
     if (!sanitisedGrid)
         return [0, 0]
@@ -311,9 +325,11 @@ function sanitiseGrid(grid) {
 }
 
 function updateQTHLocation(lat, long) {
-    console.log("Updating QTH Location: [" + lat + "," + long + "]")
-
     qthMarker.setLatLng([lat, long])
+    pathLines.forEach((line) => {
+        var latlon = line.getLatLngs()
+        line.setLatLngs([{lat:lat,lng:long}, latlon[1]])
+    })
 }
 
 function waitForElm(selector) {
