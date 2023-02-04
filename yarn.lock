@@ -939,6 +939,13 @@
   resolved "https://registry.yarnpkg.com/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz#1d572bfbbe14b7704e0ba0f39b74815b84870d70"
   integrity sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==
 
+"@elfalem/leaflet-curve@^0.9.1":
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/@elfalem/leaflet-curve/-/leaflet-curve-0.9.1.tgz#e9a9e4fe6304958178d0d6dfa0d10bf81b48b418"
+  integrity sha512-qRx+GK68e+j60TJ9/e/xIC31ON2owmEIxYajGbX+FQ/knOSlGTIgZYhQvLIeChU/1RQd+ly7Up6z62LWOjLyWQ==
+  optionalDependencies:
+    "@tweenjs/tween.js" "^17.2.0"
+
 "@jridgewell/gen-mapping@^0.1.0":
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/@jridgewell/gen-mapping/-/gen-mapping-0.1.1.tgz#e5d2e450306a9491e3bd77e323e38d7aff315996"
@@ -978,6 +985,11 @@
   dependencies:
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
+
+"@tweenjs/tween.js@^17.2.0":
+  version "17.6.0"
+  resolved "https://registry.yarnpkg.com/@tweenjs/tween.js/-/tween.js-17.6.0.tgz#61bc86c372bcc5a9f744e661dd6ae16f5ee7d0ef"
+  integrity sha512-utSXj0WHi4qr/iyfFHGMJBaL+ixQ2N7BAmx1R5g8jBqykJfjBUQ0hKWwXf767hbALC3zOoOIofKYSDWu5n04JQ==
 
 "@types/json-schema@^7.0.5", "@types/json-schema@^7.0.8":
   version "7.0.11"

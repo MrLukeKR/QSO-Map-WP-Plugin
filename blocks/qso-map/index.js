@@ -1,8 +1,10 @@
 import L from 'leaflet'
+import '@elfalem/leaflet-curve'
+
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
 const { InspectorControls } = wp.blockEditor
-const { FormFileUpload, Button, PanelBody, ToggleControl } = wp.components
+const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.components
 
 
 registerBlockType('m0lxx-qsomap/qsomap', {
@@ -29,11 +31,28 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 
     attributes: { // The data this block will be storing
         logs: {
-            type: 'string'
+            type: 'array',
+            default: []
+        },
+        originalQthLatitude: {
+            type: 'string',
+            default: 0
+        },
+        originalQthLongitude: {
+            type: 'string',
+            default: 0
+        },
+        qthLatitude: {
+            type: 'string',
+            default: 0
+        },
+        qthLongitude: {
+            type: 'string',
+            default: 0
         },
         uploading: {
             type: 'boolean',
-            value: false
+            default: false
         },
         showHeatmap: {
             type: 'boolean'
@@ -45,13 +64,18 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { attributes, className, setAttributes } = props
 
         // Pull out specific attributes for clarity below
-        const { logfile, uploading, showHeatmap } = attributes
+        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, uploading, showHeatmap, logs } = attributes
+
+        if (logs.length > 0) waitForElm('#qsomap').then(() => { generateMap(logs, props) })
 
         return (
             <div className={className}>
                 <h3>QSO Map</h3>
+                { logs.length == 0 ? 
+                <div>
                 <p>Upload an ADIF log file or link to a hosted log file with a URL.</p>
                 <FormFileUpload
+                id="uploadForm"
                 accept=".adi,.adif"
                 onChange={ ( event ) => { 
                     props.setAttributes({ uploading: true })
@@ -75,10 +99,13 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                     </div>
                 )}
                 >
+                
+                </FormFileUpload>
+                </div>
+                : null }
                 <div id="qsomap">
 
                 </div>
-                </FormFileUpload>
                 <InspectorControls>
                     <PanelBody title="Settings" initialOpen={ true }>
                         <ToggleControl
@@ -88,6 +115,38 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         >
                         </ToggleControl>
                     </PanelBody>
+                    <PanelBody title="QTH Location" initialOpen={ true }>
+                        <TextControl
+                            label="Latitude"
+                            value={ qthLatitude }
+                            onChange={ (value) => { 
+                                setAttributes({ qthLatitude: value })
+                                updateQTHLocation(value, qthLongitude)
+                             }}
+                        >
+                        </TextControl>
+                        <TextControl
+                            label="Longitude"
+                            value={ qthLongitude }
+                            onChange={ (value) => { 
+                                setAttributes({ qthLongitude: value })
+                                updateQTHLocation(qthLatitude, value)
+                             }}
+                        >
+                        </TextControl>
+                        <Button
+                            isDestructive
+                            onClick={ () => { 
+                                setAttributes({
+                                    qthLatitude: originalQthLatitude,
+                                    qthLongitude: originalQthLongitude
+                                })
+                                updateQTHLocation(originalQthLatitude, originalQthLongitude)
+                            } }>
+                            { "Reset to Log Location" }
+                        </Button>
+                    </PanelBody>
+
                 </InspectorControls>
                 <div id="qsomap"></div>
             </div>
@@ -111,8 +170,8 @@ function uploadLogFile(event, props){
     
     var fr=new FileReader();
     fr.onload=function(){
-        props.attributes.logs = parseLogFile(fr.result)
-        generateMap(props.attributes.logfile)
+        props.setAttributes( { logs: parseLogFile(fr.result) } )
+        generateMap(props.attributes.logs, props)
     }
       
     fr.readAsText(event.currentTarget.files[0])
@@ -123,24 +182,156 @@ function uploadLogFile(event, props){
 function parseLogFile(logfileContents) {
     const records = logfileContents.split("<EOH>")[1].split("<EOR>")
     
+    var logEntries = []
+
     records.forEach( (record) => {
         var dict = {}
         var sep = record.split("<")
         sep = sep.splice(1)
         sep.forEach((rec) => {
-            dict[rec.split(':')[0]] = rec.split(">")[1].trim()
+            var key = rec.split(':')[0]
+            var val = rec.split(">")[1].trim()
+            dict[key] = val
         })
-        console.log(dict)
-        
+        if (Object.keys(dict).length > 0)
+            logEntries.push(dict)
     });
-
-    return null;
+    
+    return logEntries;
 }
 
-function generateMap(logs) {
-    var map = L.map('qsomap').setView([51.505, -0.09], 13)
+var map = null
+var qthMarker = null
+
+function generateMap(logs, props) {
+    if (map != null) return
+    console.log(logs)
+    var myGrid = logs[0]['MY_GRIDSQUARE']
+    var myCall = logs[0]['STATION_CALLSIGN']
+
+    var stationCoords = gridToCoord(myGrid)
+
+    console.log("Your grid: " + stationCoords)
+
+    map = L.map('qsomap').setView(stationCoords, 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
+
+    var bounds = []
+    qthMarker = L.marker(stationCoords, { title: "QTH (" + myCall + ")" }).addTo(map);
+    logs.forEach((log) => {
+        var grid = log['GRIDSQUARE']
+        if (grid && grid != 'null') {
+            var coords = gridToCoord(grid)
+            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] }).addTo(map)
+            bounds.push(coords)
+            props.setAttributes({ qthLatitude: stationCoords[0], qthLongitude: stationCoords[1]})
+            props.setAttributes({ originalQthLatitude: stationCoords[0], originalQthLongitude: stationCoords[1]})
+            //generateCurve(map, stationCoords, coords)
+        }
+    })
+
+    map.fitBounds(bounds)    
+}
+
+
+function generateCurve(map, latlng1, latlng2) {
+var offsetX = latlng2[1] - latlng1[1],
+	offsetY = latlng2[0] - latlng1[0];
+
+var r = Math.sqrt( Math.pow(offsetX, 2) + Math.pow(offsetY, 2) ),
+	theta = Math.atan2(offsetY, offsetX);
+
+var thetaOffset = (3.14/10);
+
+var r2 = (r/2)/(Math.cos(thetaOffset)),
+	theta2 = theta + thetaOffset;
+
+var midpointX = (r2 * Math.cos(theta2)) + latlng1[1],
+	midpointY = (r2 * Math.sin(theta2)) + latlng1[0];
+
+var midpointLatLng = [midpointY, midpointX];
+
+//latlngs.push(latlng1, midpointLatLng, latlng2);
+
+var pathOptions = {
+	color: 'rgba(255,255,255,0.5)',
+	weight: 2
+}
+
+if (typeof document.getElementById('qsomap').animate === "function") { 
+	var durationBase = 2000;
+   	var duration = Math.sqrt(Math.log(r)) * durationBase;
+	// Scales the animation duration so that it's related to the line length
+	// (but such that the longest and shortest lines' durations are not too different).
+   	// You may want to use a different scaling factor.
+  	pathOptions.animate = {
+		duration: duration,
+		iterations: Infinity,
+		easing: 'ease-in-out',
+		direction: 'alternate'
+	}
+}
+
+var curvedPath = L.curve(
+	[
+		'M', latlng1,
+		'Q', midpointLatLng,
+			 latlng2
+	], pathOptions).addTo(map);
+}
+
+function gridToCoord(grid) {
+    var sanitisedGrid = sanitiseGrid(grid)
+    console.log("Converting Grid '" + sanitisedGrid + "' to Lat/Long...")
+
+    if (!sanitisedGrid)
+        return [0, 0]
+    //TODO: Finished up to Step 1c of https://www.m0nwk.co.uk/how-to-convert-maidenhead-locator-to-latitude-and-longitude/ 
+    var lat = (((sanitisedGrid.charCodeAt(1) - 65) * 10) + parseInt(sanitisedGrid.charAt(3)) + (((sanitisedGrid.charCodeAt(5) - 97) / 24) + (1/48))) - 90
+    var lon = (((sanitisedGrid.charCodeAt(0) - 65) * 20) + (parseInt(sanitisedGrid.charAt(2)) * 2) + (((sanitisedGrid.charCodeAt(4) - 97) / 12) + (1/24))) - 180
+
+    return [lat, lon]
+}
+
+function sanitiseGrid(grid) {
+    if (!grid || grid.length != 6) // TODO: Add support for 4 char locators
+        return null
+
+    var sanitisedGrid = grid.charAt(0).toUpperCase() + 
+                        grid.charAt(1).toUpperCase() + 
+                        parseInt(grid.charAt(2)).toString() +
+                        parseInt(grid.charAt(3)).toString() +
+                        grid.charAt(4).toLowerCase() + 
+                        grid.charAt(5).toLowerCase()
+
+    return sanitisedGrid
+}
+
+function updateQTHLocation(lat, long) {
+    console.log("Updating QTH Location: [" + lat + "," + long + "]")
+
+    qthMarker.setLatLng([lat, long])
+}
+
+function waitForElm(selector) {
+    return new Promise(resolve => {
+        if (document.querySelector(selector)) {
+            return resolve(document.querySelector(selector));
+        }
+
+        const observer = new MutationObserver(mutations => {
+            if (document.querySelector(selector)) {
+                resolve(document.querySelector(selector));
+                observer.disconnect();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    });
 }

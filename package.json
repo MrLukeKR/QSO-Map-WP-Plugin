@@ -23,6 +23,7 @@
     "webpack-fix-style-only-entries": "^0.6.0"
   },
   "dependencies": {
+    "@elfalem/leaflet-curve": "^0.9.1",
     "leaflet": "^1.9.3"
   }
 }
