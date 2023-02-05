@@ -5,6 +5,11 @@ const { registerBlockType } = wp.blocks
 const { InspectorControls, useBlockProps } = wp.blockEditor
 const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.components
 
+var map = null
+var qthMarker = null
+var pathLines = []
+var loadedMap = false
+
 
 registerBlockType('m0lxx-qsomap/qsomap', {
     title: __('QSO Map'), // Block name visible to user
@@ -33,6 +38,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
             type: 'array',
             default: []
         },
+        myCall: {
+            type: 'string'
+        },
+        qthGrid: {
+          type:'string'  
+        },
         originalQthLatitude: {
             type: 'string',
             default: 0
@@ -42,10 +53,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
             default: 0
         },
         qthLatitude: {
-            type: 'string'
+            type: 'string',
+            default: 0
         },
         qthLongitude: {
-            type: 'string'
+            type: 'string',
+            default: 0
         },
         uploading: {
             type: 'boolean',
@@ -56,7 +69,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         },
         showStatistics: {
             type: 'boolean'
-        },
+        }
     },
 
     edit: props => {
@@ -64,21 +77,16 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { attributes, setAttributes } = props
 
         // Pull out specific attributes for clarity below
-        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, uploading, showHeatmap, showStatistics, logs } = attributes
-
-        if (logs.length > 0) {
-            if (qthLatitude == null || qthLongitude == null) {
-                var stationCoords = gridToCoord(logs[0]["MY_GRIDSQUARE"])
+        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, uploading, showHeatmap, showStatistics, myCall, logs } = attributes
         
-                props.setAttributes({ 
-                    qthLatitude: stationCoords[0].toString(), 
-                    qthLongitude: stationCoords[1].toString(), 
-                    originalQthLatitude: stationCoords[0].toString(), 
-                    originalQthLongitude: stationCoords[1].toString()})
-            }
-
-            waitForElm('#qsomap').then(() => { generateMapEdit(props) }) 
-        }
+        !loadedMap && waitForElm('#qsomap').then(() => { 
+            generateMapEdit(logs, qthLatitude, qthLongitude, myCall)
+            qthMarker.on('dragend', () => { 
+                var latln = qthMarker.getLatLng()
+                updateQTHLocation(latln['lat'], latln['lng'])
+                props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
+            })
+         })
 
         return (
             <div { ...useBlockProps() }>
@@ -131,6 +139,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         </ToggleControl>
                     </PanelBody>
                     <PanelBody title="QTH Location" initialOpen={ true }>
+                        <p>{ qthGrid }</p>
                         <TextControl
                             label="Latitude"
                             value={ qthLatitude }
@@ -164,6 +173,24 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 
                 </InspectorControls>
                 <div id="qsomap"></div>
+                
+                <div className={ props.className }>
+                    <p>{ myCall } { qthLatitude } { qthLongitude } { originalQthLatitude } { originalQthLongitude }</p>
+                    <table>{
+                    logs.length > 0 && logs.map((log, ind) => {
+                        return <tr key={ind}>
+                            <td>{ log["CALL"] }</td>
+                            <td>{ log["QSO_DATE"] }</td>
+                            <td>{ log["TIME_ON"] }</td>
+                            <td>{ log["GRIDSQUARE"] }</td>
+                            <td>{ log["MODE"] }</td>
+                            <td>{ log["FREQ"] }</td>
+                        </tr>
+                    })
+                    
+                    }
+                    </table>
+                </div>
             </div>
         )        
     }, // End edit()
@@ -172,8 +199,6 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         // How our block renders on the frontend
 
         const blockProps = useBlockProps.save()
-
-        const { logs } = props.attributes
 
         //if (logs.length > 0) waitForElm('#qsomap').then(() => { loadMap(props) })
 
@@ -194,19 +219,20 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 });
 
 function uploadLogFile(event, props){
-    
-    var fr=new FileReader();
+        var fr=new FileReader();
     fr.onload=function(){
-        props.setAttributes( { logs: parseLogFile(fr.result) } )
-        generateMapEdit(props)
+        parseLogFile(fr.result, props)
+        
+        props.setAttributes({ uploading: false })
     }
       
     fr.readAsText(event.currentTarget.files[0])
-
-    props.setAttributes({ uploading: false })
 }
 
-function parseLogFile(logfileContents) {
+function parseLogFile(logfileContents, props) {
+    const { qthLatitude, qthLongitude, myCall, logs } = props.attributes
+
+    console.log("Parsing log file...")
     const records = logfileContents.split("<EOH>")[1].split("<EOR>")
     
     var logEntries = []
@@ -223,13 +249,34 @@ function parseLogFile(logfileContents) {
         if (Object.keys(dict).length > 0)
             logEntries.push(dict)
     });
-    
-    return logEntries;
-}
 
-var map = null
-var qthMarker = null
-var pathLines = []
+    const first = logEntries[0]
+
+    props.setAttributes( { logs: logEntries } )
+    props.setAttributes( { myCall: first['STATION_CALLSIGN'] })
+        const myGrid = first["MY_GRIDSQUARE"]
+        
+        const stationCoords = gridToCoord(myGrid)
+        console.log(myGrid + " = " + stationCoords)
+        props.setAttributes({ 
+            qthGrid: myGrid,
+            qthLatitude: stationCoords[0].toString(), 
+            qthLongitude: stationCoords[1].toString(), 
+            originalQthLatitude: stationCoords[0].toString(), 
+            originalQthLongitude: stationCoords[1].toString()})
+    
+    console.log("Done parsing...")
+
+    logEntries.length > 0 && waitForElm('#qsomap').then(() => { 
+        generateMapEdit(logEntries, stationCoords[0], stationCoords[1], myCall) 
+
+        qthMarker.on('dragend', () => { 
+            var latln = qthMarker.getLatLng()
+            updateQTHLocation(latln['lat'], latln['lng'])
+            props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
+        })
+    })
+}
 
 function loadMap(props) {
     
@@ -238,9 +285,8 @@ function loadMap(props) {
         map.remove()
     }
 
-    const { logs } = props.attributes
+    const { logs, myCall } = props.attributes
     
-    var myCall = logs[0]['STATION_CALLSIGN']
 
     map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -265,12 +311,19 @@ function loadMap(props) {
     map.fitBounds(bounds)    
 }
 
-function generateMapEdit(props) {
-    if (map) return
+function generateMapEdit(logs, qthLatitude, qthLongitude, myCall) {
+    console.log("Generating Map...")
+
+    if (map) {
+        map.off()
+        map.remove()
+    }
     
-    const { logs, qthLatitude, qthLongitude } = props.attributes
-    var myCall = logs[0]['STATION_CALLSIGN']
-        
+    if (logs.length == 0) {
+        console.error("No logs!")
+        return
+    }
+
     map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -283,12 +336,6 @@ function generateMapEdit(props) {
             title: "QTH (" + myCall + ")", 
             draggable: true 
         }).addTo(map);
-    
-    qthMarker.on('dragend', () => { 
-        var latln = qthMarker.getLatLng()
-        updateQTHLocation(latln['lat'], latln['lng'])
-        props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
-    })
 
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']
@@ -302,6 +349,7 @@ function generateMapEdit(props) {
     })
 
     map.fitBounds(bounds)    
+    loadedMap = true
 }
 
 
