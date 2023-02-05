@@ -2,7 +2,7 @@ import L from "leaflet";
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
-const { InspectorControls } = wp.blockEditor
+const { InspectorControls, useBlockProps } = wp.blockEditor
 const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.components
 
 
@@ -42,12 +42,10 @@ registerBlockType('m0lxx-qsomap/qsomap', {
             default: 0
         },
         qthLatitude: {
-            type: 'string',
-            default: 0
+            type: 'string'
         },
         qthLongitude: {
-            type: 'string',
-            default: 0
+            type: 'string'
         },
         uploading: {
             type: 'boolean',
@@ -63,15 +61,27 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 
     edit: props => {
         // Pull out the props we'll use
-        const { attributes, className, setAttributes } = props
+        const { attributes, setAttributes } = props
 
         // Pull out specific attributes for clarity below
         const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, uploading, showHeatmap, showStatistics, logs } = attributes
 
-        if (logs.length > 0) waitForElm('#qsomap').then(() => { generateMap(logs, props) })
+        if (logs.length > 0) {
+            if (qthLatitude == null || qthLongitude == null) {
+                var stationCoords = gridToCoord(logs[0]["MY_GRIDSQUARE"])
+        
+                props.setAttributes({ 
+                    qthLatitude: stationCoords[0].toString(), 
+                    qthLongitude: stationCoords[1].toString(), 
+                    originalQthLatitude: stationCoords[0].toString(), 
+                    originalQthLongitude: stationCoords[1].toString()})
+            }
+
+            waitForElm('#qsomap').then(() => { generateMapEdit(props) }) 
+        }
 
         return (
-            <div className={className}>
+            <div { ...useBlockProps() }>
                 <h3>QSO Map</h3>
                 { logs.length == 0 ? 
                 <div>
@@ -105,9 +115,6 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                 </FormFileUpload>
                 </div>
                 : null }
-                <div id="qsomap">
-
-                </div>
                 <InspectorControls>
                     <PanelBody title="Settings" initialOpen={ true }>
                         <ToggleControl
@@ -164,7 +171,19 @@ registerBlockType('m0lxx-qsomap/qsomap', {
     save: props => {
         // How our block renders on the frontend
 
-        return null /*(
+        const blockProps = useBlockProps.save()
+
+        const { logs } = props.attributes
+
+        //if (logs.length > 0) waitForElm('#qsomap').then(() => { loadMap(props) })
+
+        return (
+            <div {...blockProps}>
+                <h3>QSO Map</h3>
+                <div id="qsomap"></div>
+            </div>
+        
+        ) /*(
             <div className="qsomap-container">
                 <div className="qsomap">
 
@@ -179,7 +198,7 @@ function uploadLogFile(event, props){
     var fr=new FileReader();
     fr.onload=function(){
         props.setAttributes( { logs: parseLogFile(fr.result) } )
-        generateMap(props.attributes.logs, props)
+        generateMapEdit(props)
     }
       
     fr.readAsText(event.currentTarget.files[0])
@@ -212,38 +231,73 @@ var map = null
 var qthMarker = null
 var pathLines = []
 
-function generateMap(logs, props) {
-    if (map != null) return
-    console.log(logs)
-    var myGrid = logs[0]['MY_GRIDSQUARE']
+function loadMap(props) {
+    
+    if (map) {
+        map.off()
+        map.remove()
+    }
+
+    const { logs } = props.attributes
+    
     var myCall = logs[0]['STATION_CALLSIGN']
 
-    var stationCoords = gridToCoord(myGrid)
-
-    console.log("Your grid: " + stationCoords)
-
-    map = L.map('qsomap').setView(stationCoords, 13)
+    map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
     var bounds = []
-    qthMarker = L.marker(stationCoords, { title: "QTH (" + myCall + ")", draggable: true }).addTo(map);
-    qthMarker.on('dragend', () => { 
-        var latln = qthMarker.getLatLng()
-        updateQTHLocation(latln['lat'], latln['lng'])
-        props.setAttributes({ qthLatitude: latln['lat'], qthLongitude: latln['lng']})
-    })
+    qthMarker = L.marker([qthLatitude, qthLongitude], { title: "QTH (" + myCall + ")" }).addTo(map);
+
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']
         if (grid && grid != 'null') {
             var coords = gridToCoord(grid)
             L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
             bounds.push(coords)
-            props.setAttributes({ qthLatitude: stationCoords[0], qthLongitude: stationCoords[1]})
-            props.setAttributes({ originalQthLatitude: stationCoords[0], originalQthLongitude: stationCoords[1]})
-            generateCurve(stationCoords, coords, log['MODE'], log['BAND'])
+            
+            generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'])
+        }
+    })
+
+    map.fitBounds(bounds)    
+}
+
+function generateMapEdit(props) {
+    if (map) return
+    
+    const { logs, qthLatitude, qthLongitude } = props.attributes
+    var myCall = logs[0]['STATION_CALLSIGN']
+        
+    map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    var bounds = []
+    qthMarker = L.marker([qthLatitude, qthLongitude], 
+        { 
+            title: "QTH (" + myCall + ")", 
+            draggable: true 
+        }).addTo(map);
+    
+    qthMarker.on('dragend', () => { 
+        var latln = qthMarker.getLatLng()
+        updateQTHLocation(latln['lat'], latln['lng'])
+        props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
+    })
+
+    logs.forEach((log) => {
+        var grid = log['GRIDSQUARE']
+        if (grid && grid != 'null') {
+            var coords = gridToCoord(grid)
+            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
+            bounds.push(coords)
+            
+            generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'])
         }
     })
 
@@ -303,7 +357,7 @@ function gridToCoord(grid) {
 
     if (!sanitisedGrid)
         return [0, 0]
-    //TODO: Finished up to Step 1c of https://www.m0nwk.co.uk/how-to-convert-maidenhead-locator-to-latitude-and-longitude/ 
+
     var lat = (((sanitisedGrid.charCodeAt(1) - 65) * 10) + parseInt(sanitisedGrid.charAt(3)) + (((sanitisedGrid.charCodeAt(5) - 97) / 24) + (1/48))) - 90
     var lon = (((sanitisedGrid.charCodeAt(0) - 65) * 20) + (parseInt(sanitisedGrid.charAt(2)) * 2) + (((sanitisedGrid.charCodeAt(4) - 97) / 12) + (1/24))) - 180
 
@@ -311,8 +365,11 @@ function gridToCoord(grid) {
 }
 
 function sanitiseGrid(grid) {
-    if (!grid || grid.length != 6) // TODO: Add support for 4 char locators
+    if (!grid)
         return null
+    
+    if(grid.length == 4)
+        grid = grid + "aa"
 
     var sanitisedGrid = grid.charAt(0).toUpperCase() + 
                         grid.charAt(1).toUpperCase() + 
