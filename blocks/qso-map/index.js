@@ -9,6 +9,7 @@ const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.com
 var map = null
 var qthMarker = null
 var pathLines = []
+var qsoBounds = []
 var loadedMap = false
 
 
@@ -179,13 +180,13 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         <Button 
                             isSecondary 
                             disabled={ logs.length == 0 }
-                            onClick={ () => {} }>
+                            onClick={ () => zoomToQTH() }>
                                 { "Zoom to QTH" }
                         </Button>
                         <Button 
                             isSecondary 
                             disabled={ logs.length == 0 }
-                            onClick={ () => {} }>
+                            onClick={ () => zoomToBounds() }>
                                 { "Fit All QSOs" }
                         </Button>
                     </div>
@@ -311,7 +312,6 @@ function loadMap(props) {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
-    var bounds = []
     qthMarker = L.marker([qthLatitude, qthLongitude], { title: "<b>" + myCall + "</b>\r\n" + qthGrid  }).addTo(map);
 
     logs.forEach((log) => {
@@ -366,9 +366,20 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
     })
 
     map.fitBounds(bounds)    
+    qsoBounds = map.getBounds()
     loadedMap = true
 }
 
+
+function zoomToQTH(){
+    console.log("Zooming to QTH...")
+    map.flyTo(qthMarker.getLatLng(), 15)
+}
+
+function zoomToBounds() {
+    console.log("Zooming to Bounds...")
+    map.flyToBounds(qsoBounds)
+}
 
 function generateCurve(latlng1, latlng2, mode, band) {
 var offsetX = latlng2[1] - latlng1[1],
