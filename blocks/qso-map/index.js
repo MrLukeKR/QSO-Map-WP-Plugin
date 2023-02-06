@@ -81,12 +81,13 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         // Pull out specific attributes for clarity below
         const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, uploading, showHeatmap, showStatistics, myCall, logs } = attributes
         
-        !loadedMap && waitForElm('#qsomap').then(() => { 
+        !loadedMap && logs.length > 0 && waitForElm('#qsomap').then(() => { 
             generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid)
+
             qthMarker.on('dragend', () => { 
                 var latln = qthMarker.getLatLng()
                 updateQTHLocation(latln['lat'], latln['lng'])
-                props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
+                props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString() })
             })
          })
 
@@ -215,24 +216,44 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 
     save: props => {
         // How our block renders on the frontend
-
         const blockProps = useBlockProps.save()
 
-        //if (logs.length > 0) waitForElm('#qsomap').then(() => { loadMap(props) })
+        const { qthLatitude, qthLongitude, qthGrid, uploading, showHeatmap, showStatistics, myCall, logs } = props.attributes
+
+//        if (logs.length > 0) waitForElm('#qsomap').then(() => { generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid) })
 
         return (
             <div {...blockProps}>
                 <h3>QSO Map</h3>
-                <div id="qsomap"></div>
+                <div id="mapcollection">
+                    <div id="qsomap"></div>
+                    <div id="mapcontrol">
+                        
+                    </div>
+                </div>
+                <div className={ props.className }>
+                    <p>{ myCall } { qthLatitude } { qthLongitude }</p>
+                    <table>{
+                    logs.length > 0 && logs.map((log, ind) => {
+                        return <tr key={ind}>
+                            <td>{ log["CALL"] }</td>
+                            <td>{ log["QSO_DATE"] }</td>
+                            <td>{ log["TIME_ON"] }</td>
+                            <td>{ log["GRIDSQUARE"] }</td>
+                            <td>{ log["MODE"] }</td>
+                            <td>{ log["FREQ"] }</td>
+                        </tr>
+                    })
+                    
+                    }
+                    </table>
+                </div>
+                
+                
+                
             </div>
         
-        ) /*(
-            <div className="qsomap-container">
-                <div className="qsomap">
-
-                </div>
-            </div>
-        )*/
+        ) 
     } // End save()
 });
 
@@ -291,41 +312,9 @@ function parseLogFile(logfileContents, props) {
         qthMarker.on('dragend', () => { 
             var latln = qthMarker.getLatLng()
             updateQTHLocation(latln['lat'], latln['lng'])
-            props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString()})
+            props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString() })
         })
     })
-}
-
-function loadMap(props) {
-    
-    if (map) {
-        map.off()
-        map.remove()
-    }
-
-    const { logs, myCall, qthGrid } = props.attributes
-    
-
-    map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
-
-    qthMarker = L.marker([qthLatitude, qthLongitude], { title: "<b>" + myCall + "</b>\r\n" + qthGrid  }).addTo(map);
-
-    logs.forEach((log) => {
-        var grid = log['GRIDSQUARE']
-        if (grid && grid != 'null') {
-            var coords = gridToCoord(grid)
-            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
-            bounds.push(coords)
-            
-            generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'])
-        }
-    })
-
-    map.fitBounds(bounds)    
 }
 
 function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
@@ -463,7 +452,7 @@ function updateQTHLocation(lat, long) {
     qthMarker.setLatLng([lat, long])
     pathLines.forEach((line) => {
         var latlon = line.getLatLngs()
-        line.setLatLngs([{lat:lat,lng:long}, latlon[1]])
+        line.setLatLngs([latlon[0], {lat:lat,lng:long}])
     })
 }
 
