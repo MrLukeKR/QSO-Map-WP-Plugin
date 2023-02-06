@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@elfalem/leaflet-curve": "^0.9.1",
-    "leaflet": "^1.9.3"
+    "leaflet": "^1.9.3",
+    "leaflet-path-flow": "^1.0.0"
   }
 }

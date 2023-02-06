@@ -1,4 +1,5 @@
 import L from "leaflet";
+import "leaflet-path-flow"
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
@@ -80,7 +81,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, uploading, showHeatmap, showStatistics, myCall, logs } = attributes
         
         !loadedMap && waitForElm('#qsomap').then(() => { 
-            generateMapEdit(logs, qthLatitude, qthLongitude, myCall)
+            generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid)
             qthMarker.on('dragend', () => { 
                 var latln = qthMarker.getLatLng()
                 updateQTHLocation(latln['lat'], latln['lng'])
@@ -172,7 +173,23 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                     </PanelBody>
 
                 </InspectorControls>
-                <div id="qsomap"></div>
+                <div id="mapcollection">
+                    <div id="qsomap"></div>
+                    <div id="mapcontrol">
+                        <Button 
+                            isSecondary 
+                            disabled={ logs.length == 0 }
+                            onClick={ () => {} }>
+                                { "Zoom to QTH" }
+                        </Button>
+                        <Button 
+                            isSecondary 
+                            disabled={ logs.length == 0 }
+                            onClick={ () => {} }>
+                                { "Fit All QSOs" }
+                        </Button>
+                    </div>
+                </div>
                 
                 <div className={ props.className }>
                     <p>{ myCall } { qthLatitude } { qthLongitude } { originalQthLatitude } { originalQthLongitude }</p>
@@ -254,9 +271,9 @@ function parseLogFile(logfileContents, props) {
 
     props.setAttributes( { logs: logEntries } )
     props.setAttributes( { myCall: first['STATION_CALLSIGN'] })
-        const myGrid = first["MY_GRIDSQUARE"]
+    const myGrid = first["MY_GRIDSQUARE"]
         
-        const stationCoords = gridToCoord(myGrid)
+    const stationCoords = gridToCoord(myGrid)
         console.log(myGrid + " = " + stationCoords)
         props.setAttributes({ 
             qthGrid: myGrid,
@@ -268,7 +285,7 @@ function parseLogFile(logfileContents, props) {
     console.log("Done parsing...")
 
     logEntries.length > 0 && waitForElm('#qsomap').then(() => { 
-        generateMapEdit(logEntries, stationCoords[0], stationCoords[1], myCall) 
+        generateMapEdit(logEntries, stationCoords[0], stationCoords[1], myCall, myGrid) 
 
         qthMarker.on('dragend', () => { 
             var latln = qthMarker.getLatLng()
@@ -285,7 +302,7 @@ function loadMap(props) {
         map.remove()
     }
 
-    const { logs, myCall } = props.attributes
+    const { logs, myCall, qthGrid } = props.attributes
     
 
     map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
@@ -295,7 +312,7 @@ function loadMap(props) {
     }).addTo(map);
 
     var bounds = []
-    qthMarker = L.marker([qthLatitude, qthLongitude], { title: "QTH (" + myCall + ")" }).addTo(map);
+    qthMarker = L.marker([qthLatitude, qthLongitude], { title: "<b>" + myCall + "</b>\r\n" + qthGrid  }).addTo(map);
 
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']
@@ -311,7 +328,7 @@ function loadMap(props) {
     map.fitBounds(bounds)    
 }
 
-function generateMapEdit(logs, qthLatitude, qthLongitude, myCall) {
+function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
     console.log("Generating Map...")
 
     if (map) {
@@ -333,7 +350,7 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall) {
     var bounds = []
     qthMarker = L.marker([qthLatitude, qthLongitude], 
         { 
-            title: "QTH (" + myCall + ")", 
+            title: myCall + "\r\n" + myGrid,
             draggable: true 
         }).addTo(map);
 
@@ -375,13 +392,15 @@ var midpointLatLng = [midpointY, midpointX];
 
     var line = L.polyline(
 	[
-		latlng1,
-		latlng2
+		latlng2,
+        latlng1
+		
 	], 
     {
         color: bandToColour(band),
         weight: 1, 
-        dashArray: 4
+        dashArray: 4,
+        dashSpeed: 10
     }).addTo(map);
 
     pathLines.push(line)
