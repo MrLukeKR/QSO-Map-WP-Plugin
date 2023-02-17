@@ -1,4 +1,4 @@
-import L from "leaflet";
+import "leaflet.heat"
 import "leaflet-path-flow"
 
 const { __ } = wp.i18n
@@ -11,7 +11,6 @@ var qthMarker = null
 var pathLines = []
 var qsoBounds = []
 var loadedMap = false
-
 
 registerBlockType('m0lxx-qsomap/qsomap', {
     title: __('QSO Map'), // Block name visible to user
@@ -71,6 +70,9 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         },
         showStatistics: {
             type: 'boolean'
+        },
+        showLines: {
+            type: 'boolean'
         }
     },
 
@@ -79,10 +81,18 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { attributes, setAttributes } = props
 
         // Pull out specific attributes for clarity below
-        const { originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, uploading, showHeatmap, showStatistics, myCall, logs } = attributes
+        const { 
+            originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, 
+            uploading, 
+            showHeatmap, showStatistics, showLines,
+            myCall, logs 
+        } = attributes
         
         !loadedMap && logs.length > 0 && waitForElm('#qsomap').then(() => { 
             generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid)
+
+
+            props.setAttributes({ qsoMap: document.getElementById("qsomap").innerHTML }) 
 
             qthMarker.on('dragend', () => { 
                 var latln = qthMarker.getLatLng()
@@ -138,6 +148,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                             label="Show Statistics"
                             checked={ showStatistics }
                             onChange={() => setAttributes({ showStatistics: !showStatistics })}
+                        >
+                        </ToggleControl>
+                        <ToggleControl
+                            label="Show Lines"
+                            checked={ showLines }
+                            onChange={() => setAttributes({ showLines: !showLines })}
                         >
                         </ToggleControl>
                     </PanelBody>
@@ -335,8 +351,10 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
+    
 
     var bounds = []
+    var heat = []
     qthMarker = L.marker([qthLatitude, qthLongitude], 
         { 
             title: myCall + "\r\n" + myGrid,
@@ -349,13 +367,14 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
             var coords = gridToCoord(grid)
             L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
             bounds.push(coords)
-            
+            heat.push(coords)
             generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'])
         }
     })
 
     map.fitBounds(bounds)    
     qsoBounds = map.getBounds()
+    L.heatLayer(heat, {blur:25, radius: 25, maxZoom: 8}).addTo(map)
     loadedMap = true
 }
 

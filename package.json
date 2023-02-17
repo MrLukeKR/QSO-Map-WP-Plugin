@@ -4,13 +4,13 @@
   "license": "MIT",
   "main": "blocks/index.js",
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider webpack",
-    "build": "cross-env NODE_ENV=production webpack -p",
+    "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider webpack --mode development --progress",
+    "build": "cross-env NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider webpack --mode production --progress",
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-native start"
   },
   "devDependencies": {
     "@babel/core": "^7.12.8",
-    "@wordpress/babel-preset-default": "^4.19.0",
+    "@wordpress/babel-preset-default": "^7.11.0",
     "autoprefixer": "^10.0.2",
     "babel-loader": "^8.2.1",
     "cross-env": "6.0.3",
@@ -23,8 +23,11 @@
     "webpack-fix-style-only-entries": "^0.6.0"
   },
   "dependencies": {
-    "@elfalem/leaflet-curve": "^0.9.1",
+    "@babel/preset-env": "^7.20.2",
+    "flatted": "^3.2.7",
     "leaflet": "^1.9.3",
-    "leaflet-path-flow": "^1.0.0"
+    "leaflet-heatmap": "^1.0.0",
+    "leaflet-path-flow": "^1.0.0",
+    "leaflet.heat": "^0.2.0"
   }
 }

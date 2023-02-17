@@ -3,6 +3,7 @@ const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
+
 // see https://webpack.js.org/plugins/mini-css-extract-plugin/#extracting-css-based-on-entry
 const recursiveIssuer = (m, c) => {
   const issuer = m.issuer;
@@ -51,10 +52,12 @@ cssFiles.map(cssFile => cacheGroups[cssFile.name] = {
   enforce: true
 })
 
+
 module.exports = {
   entry: entryPoints,
   output: {
     path: path.resolve(__dirname),
+    publicPath: "/wp-content/plugins/qso-map/",
     filename: './assets/js/[name].js'
   },
   watch: 'production' !== process.env.NODE_ENV,
@@ -62,10 +65,19 @@ module.exports = {
   module: {
     rules: [
       {
+
+      },
+      {
         test: /\.js$/,
-        exclude: /(node_modules|bower_components)/,
+        exclude: /node_modules|bower_components/,
         use: {
-          loader: 'babel-loader'
+          loader: 'babel-loader',
+          options: {
+            presets: [
+                '@babel/preset-env'
+            ],
+            "plugins": ['@babel/plugin-proposal-class-properties'],
+          }
         }
       },
       {
@@ -91,6 +103,9 @@ module.exports = {
     }
   },
   plugins: [
+    new webpack.ProvidePlugin({
+      L: 'leaflet'
+    }),
     // remove erroneous JS files generated from CSS entry points
     new FixStyleOnlyEntriesPlugin(),
 
