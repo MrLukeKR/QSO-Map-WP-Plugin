@@ -4,7 +4,7 @@
   "license": "MIT",
   "main": "blocks/index.js",
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider webpack --mode development --progress",
+    "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider webpack --mode development --progress && cp -r ./assets/ ./blocks/ ./lib/ ./qso-map.php ./uninstall.php /mnt/ionos/radio/wp-content/plugins/qso-map/",
     "build": "cross-env NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider webpack --mode production --progress",
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-native start"
   },

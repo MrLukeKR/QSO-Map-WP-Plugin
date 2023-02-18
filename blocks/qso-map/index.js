@@ -42,6 +42,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         myCall: {
             type: 'string'
         },
+        furthestQSO: {
+            type: 'string'
+        },
+        numberOfQSOs: {
+            type: 'string'
+        },
         qthGrid: {
           type:'string'  
         },
@@ -97,7 +103,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
             qthMarker.on('dragend', () => { 
                 var latln = qthMarker.getLatLng()
                 updateQTHLocation(latln['lat'], latln['lng'])
-                props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString() })
+                props.setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString(), qthGrid: coordsToGrid(latln['lat'], latln['lng']) })
             })
          })
 
@@ -158,12 +164,29 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         </ToggleControl>
                     </PanelBody>
                     <PanelBody title="QTH Location" initialOpen={ true }>
-                        <p>{ qthGrid }</p>
+                        <TextControl
+                            label="Gridsquare"
+                            value={ qthGrid }
+                            onChange={ (value) => { 
+                                
+                                var grid = value.length == 6 ? sanitiseGrid(value) : value
+                                setAttributes({ qthGrid: grid })
+
+                                if (grid.length != 6)
+                                    return
+                                    
+                                var coords = gridToCoord(grid)
+                                setAttributes({ qthLatitude: coords[0], qthLongitude: coords[1] })
+                                updateQTHLocation(coords[0], coords[1])
+                             }}
+                        >
+                        </TextControl>
                         <TextControl
                             label="Latitude"
                             value={ qthLatitude }
                             onChange={ (value) => { 
-                                setAttributes({ qthLatitude: value })
+                                var grid = coordsToGrid(value, qthLongitude)
+                                setAttributes({ qthGrid: grid, qthLatitude: value })
                                 updateQTHLocation(value, qthLongitude)
                              }}
                         >
@@ -172,7 +195,8 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                             label="Longitude"
                             value={ qthLongitude }
                             onChange={ (value) => { 
-                                setAttributes({ qthLongitude: value })
+                                var grid = coordsToGrid(qthLatitude, value)
+                                setAttributes({ qthGrid: grid, qthLongitude: value })
                                 updateQTHLocation(qthLatitude, value)
                              }}
                         >
@@ -191,6 +215,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                     </PanelBody>
 
                 </InspectorControls>
+
                 <div id="mapcollection">
                     <div id="qsomap"></div>
                     <div id="mapcontrol">
@@ -206,25 +231,13 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                             onClick={ () => zoomToBounds() }>
                                 { "Fit All QSOs" }
                         </Button>
+                        <Button
+                            isSecondary
+                            disabled={ logs.length == 0}
+                            onClick={ () => playQSOOrder() }>
+                                { "Play QSO Order" }
+                            </Button>
                     </div>
-                </div>
-                
-                <div className={ props.className }>
-                    <p>{ myCall } { qthLatitude } { qthLongitude } { originalQthLatitude } { originalQthLongitude }</p>
-                    <table>{
-                    logs.length > 0 && logs.map((log, ind) => {
-                        return <tr key={ind}>
-                            <td>{ log["CALL"] }</td>
-                            <td>{ log["QSO_DATE"] }</td>
-                            <td>{ log["TIME_ON"] }</td>
-                            <td>{ log["GRIDSQUARE"] }</td>
-                            <td>{ log["MODE"] }</td>
-                            <td>{ log["FREQ"] }</td>
-                        </tr>
-                    })
-                    
-                    }
-                    </table>
                 </div>
             </div>
         )        
@@ -239,35 +252,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 //        if (logs.length > 0) waitForElm('#qsomap').then(() => { generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid) })
 
         return (
-            <div {...blockProps}>
-                <h3>QSO Map</h3>
-                <div id="mapcollection">
-                    <div id="qsomap"></div>
-                    <div id="mapcontrol">
-                        
-                    </div>
-                </div>
-                <div className={ props.className }>
-                    <p>{ myCall } { qthLatitude } { qthLongitude }</p>
-                    <table>{
-                    logs.length > 0 && logs.map((log, ind) => {
-                        return <tr key={ind}>
-                            <td>{ log["CALL"] }</td>
-                            <td>{ log["QSO_DATE"] }</td>
-                            <td>{ log["TIME_ON"] }</td>
-                            <td>{ log["GRIDSQUARE"] }</td>
-                            <td>{ log["MODE"] }</td>
-                            <td>{ log["FREQ"] }</td>
-                        </tr>
-                    })
-                    
-                    }
-                    </table>
-                </div>
-                
-                
-                
-            </div>
+            null
         
         ) 
     } // End save()
@@ -389,6 +374,10 @@ function zoomToBounds() {
     map.flyToBounds(qsoBounds)
 }
 
+function playQSOOrder() {
+
+}
+
 function generateCurve(latlng1, latlng2, mode, band) {
 var offsetX = latlng2[1] - latlng1[1],
 	offsetY = latlng2[0] - latlng1[0];
@@ -465,6 +454,30 @@ function sanitiseGrid(grid) {
                         grid.charAt(5).toLowerCase()
 
     return sanitisedGrid
+}
+
+function coordsToGrid(latitude, longitude) {
+    latitude = parseFloat(latitude)
+    longitude = parseFloat(longitude)
+
+    if (latitude >= 90 || latitude < -90)
+        throw new Error("Latitude must be between -90 and 90")
+    if (longitude >= 180 || longitude < -180)
+        throw new Error("Longitude must be between -180 and 180")
+
+    var lat = latitude + 90.0
+    var long = longitude + 180.0
+    var square = String.fromCharCode(Math.trunc(long / 20) + 65)
+    square += String.fromCharCode(Math.trunc(lat / 10) + 65)
+    square += Math.trunc((long / 2) % 10).toString()
+    square += Math.trunc(lat % 10).toString()
+
+    var longrem = (long - Math.trunc(long / 2) * 2) * 60
+    var latrem = (lat - Math.trunc(lat)) * 60
+    square += String.fromCharCode(Math.trunc(longrem / 5) + 97)
+    square += String.fromCharCode(Math.trunc(latrem / 2.5)  + 97)
+
+    return square;
 }
 
 function updateQTHLocation(lat, long) {
