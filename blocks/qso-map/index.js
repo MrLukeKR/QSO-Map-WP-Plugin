@@ -7,6 +7,7 @@ const { InspectorControls, useBlockProps } = wp.blockEditor
 const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.components
 
 var map = null
+var heatmap = null
 var qthMarker = null
 var pathLines = []
 var qsoBounds = []
@@ -79,6 +80,9 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         },
         showLines: {
             type: 'boolean'
+        },
+        showLog: {
+            type: 'boolean'
         }
     },
 
@@ -90,12 +94,12 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         const { 
             originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, 
             uploading, 
-            showHeatmap, showStatistics, showLines,
+            showHeatmap, showStatistics, showLines, showLog,
             myCall, logs 
         } = attributes
         
         !loadedMap && logs.length > 0 && waitForElm('#qsomap').then(() => { 
-            generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid)
+            generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid, showHeatmap, showLines)
 
 
             props.setAttributes({ qsoMap: document.getElementById("qsomap").innerHTML }) 
@@ -147,21 +151,37 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         <ToggleControl
                             label="Show Heatmap"
                             checked={ showHeatmap }
-                            onChange={() => setAttributes({ showHeatmap: !showHeatmap })}
-                        >
-                        </ToggleControl>
+                            onChange={() => {
+                                setAttributes({ showHeatmap: !showHeatmap })
+                                if (showHeatmap && heatmap != null)
+                                    map.removeLayer(heatmap)
+                                else if (!showHeatmap && heatmap == null)
+                                    generateMapEdit(logs, qthLatitude, qthLongitude, myCall, qthGrid, !showHeatmap, showLines)
+                                else if (!showHeatmap && heatmap != null)
+                                    map.addLayer(heatmap)
+                            }}
+                        ></ToggleControl>
                         <ToggleControl
                             label="Show Statistics"
                             checked={ showStatistics }
                             onChange={() => setAttributes({ showStatistics: !showStatistics })}
-                        >
-                        </ToggleControl>
+                        ></ToggleControl>
                         <ToggleControl
                             label="Show Lines"
                             checked={ showLines }
-                            onChange={() => setAttributes({ showLines: !showLines })}
-                        >
-                        </ToggleControl>
+                            onChange={() => {
+                                setAttributes({ showLines: !showLines })
+                                if (showLines && pathLines.length > 0)
+                                    hideLines()
+                                else if (!showLines && pathLines.length > 0)
+                                    showHiddenLines()
+                            }}
+                        ></ToggleControl>
+                        <ToggleControl
+                            label="Show Log"
+                            checked={ showLog }
+                            onChange={() => setAttributes({ showLog: !showLog })}
+                        ></ToggleControl>
                     </PanelBody>
                     <PanelBody title="QTH Location" initialOpen={ true }>
                         <TextControl
@@ -270,7 +290,7 @@ function uploadLogFile(event, props){
 }
 
 function parseLogFile(logfileContents, props) {
-    const { qthLatitude, qthLongitude, myCall, logs } = props.attributes
+    const { qthLatitude, qthLongitude, myCall, logs, showHeatmap } = props.attributes
 
     console.log("Parsing log file...")
     const records = logfileContents.split("<EOH>")[1].split("<EOR>")
@@ -308,7 +328,7 @@ function parseLogFile(logfileContents, props) {
     console.log("Done parsing...")
 
     logEntries.length > 0 && waitForElm('#qsomap').then(() => { 
-        generateMapEdit(logEntries, stationCoords[0], stationCoords[1], myCall, myGrid) 
+        generateMapEdit(logEntries, stationCoords[0], stationCoords[1], myCall, myGrid, showHeatmap, showLines) 
 
         qthMarker.on('dragend', () => { 
             var latln = qthMarker.getLatLng()
@@ -318,13 +338,24 @@ function parseLogFile(logfileContents, props) {
     })
 }
 
-function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
+function hideLines() {
+    pathLines.forEach((line) => line.remove(map))
+}
+
+function showHiddenLines() {
+    pathLines.forEach((line) => line.addTo(map))
+}
+
+function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHeat, showLines) {
     console.log("Generating Map...")
 
     if (map) {
         map.off()
         map.remove()
     }
+
+    if (pathLines.length > 0)
+        clearLines()
     
     if (logs.length == 0) {
         console.error("No logs!")
@@ -352,14 +383,17 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid) {
             var coords = gridToCoord(grid)
             L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
             bounds.push(coords)
-            heat.push(coords)
-            generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'])
+            if (showHeat)
+                heat.push(coords)
+            generateCurve([qthLatitude, qthLongitude], coords, log['MODE'], log['BAND'], showLines)
         }
     })
 
     map.fitBounds(bounds)    
     qsoBounds = map.getBounds()
-    L.heatLayer(heat, {blur:25, radius: 25, maxZoom: 8}).addTo(map)
+
+    if (showHeat)
+        heatmap = L.heatLayer(heat, {blur:25, radius: 25, maxZoom: 8}).addTo(map)
     loadedMap = true
 }
 
@@ -378,7 +412,7 @@ function playQSOOrder() {
 
 }
 
-function generateCurve(latlng1, latlng2, mode, band) {
+function generateCurve(latlng1, latlng2, mode, band, show) {
 var offsetX = latlng2[1] - latlng1[1],
 	offsetY = latlng2[0] - latlng1[0];
 
@@ -409,7 +443,9 @@ var midpointLatLng = [midpointY, midpointX];
         weight: 1, 
         dashArray: 4,
         dashSpeed: 10
-    }).addTo(map);
+    })
+    if (show)
+        line.addTo(map);
 
     pathLines.push(line)
 }
@@ -424,6 +460,8 @@ function bandToColour(band){
             return 'blue'
         case "70cm":
             return 'green'
+        default:
+            return 'black'
     }
 }
 
