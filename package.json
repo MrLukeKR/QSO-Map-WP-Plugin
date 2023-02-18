@@ -24,10 +24,12 @@
   },
   "dependencies": {
     "@babel/preset-env": "^7.20.2",
+    "@elfalem/leaflet-curve": "^0.9.1",
     "flatted": "^3.2.7",
     "leaflet": "^1.9.3",
     "leaflet-heatmap": "^1.0.0",
     "leaflet-path-flow": "^1.0.0",
+    "leaflet.fullscreen": "^2.4.0",
     "leaflet.heat": "^0.2.0"
   }
 }

@@ -1,5 +1,7 @@
 import "leaflet.heat"
 import "leaflet-path-flow"
+import '@elfalem/leaflet-curve'
+import "leaflet.fullscreen"
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
@@ -317,7 +319,7 @@ function parseLogFile(logfileContents, props) {
     const myGrid = first["MY_GRIDSQUARE"]
         
     const stationCoords = gridToCoord(myGrid)
-        console.log(myGrid + " = " + stationCoords)
+        
         props.setAttributes({ 
             qthGrid: myGrid,
             qthLatitude: stationCoords[0].toString(), 
@@ -362,7 +364,12 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHe
         return
     }
 
-    map = L.map('qsomap').setView([qthLatitude, qthLongitude], 13)
+    map = L.map('qsomap', {
+        fullscreenControl: true,
+        fullscreenControlOptions: {
+          position: 'topleft'
+        }
+    }).setView([qthLatitude, qthLongitude], 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -412,37 +419,43 @@ function playQSOOrder() {
 
 }
 
-function generateCurve(latlng1, latlng2, mode, band, show) {
-var offsetX = latlng2[1] - latlng1[1],
-	offsetY = latlng2[0] - latlng1[0];
+function calculateMidpoint(latlng1, latlng2) {
+    var coord1 = latlng1[1] > latlng2[1] ? latlng2 : latlng1
+    var coord2 = latlng1[1] > latlng2[1] ? latlng1 : latlng2
+    
+var offsetX = coord2[1] - coord1[1],
+	offsetY = coord2[0] - coord1[0];
 
 var r = Math.sqrt( Math.pow(offsetX, 2) + Math.pow(offsetY, 2) ),
 	theta = Math.atan2(offsetY, offsetX);
+
 
 var thetaOffset = (3.14/10);
 
 var r2 = (r/2)/(Math.cos(thetaOffset)),
 	theta2 = theta + thetaOffset;
 
-var midpointX = (r2 * Math.cos(theta2)) + latlng1[1],
-	midpointY = (r2 * Math.sin(theta2)) + latlng1[0];
+var midpointX = (r2 * Math.cos(theta2)) + parseFloat(coord1[1]),
+	midpointY = (r2 * Math.sin(theta2)) + parseFloat(coord1[0])
 
-var midpointLatLng = [midpointY, midpointX];
+    return [midpointY, midpointX]
+}
 
-//latlngs.push(latlng1, midpointLatLng, latlng2);
+function generateCurve(latlng1, latlng2, mode, band, show) {
+var midpointLatLng = calculateMidpoint(latlng1, latlng2)
 
-
-    var line = L.polyline(
-	[
+    var line = L.curve(
+	[ 'M',
 		latlng2,
+    'Q',
+        midpointLatLng,
         latlng1
-		
 	], 
     {
         color: bandToColour(band),
         weight: 1, 
         dashArray: 4,
-        dashSpeed: 10
+        dashSpeed: 15,
     })
     if (show)
         line.addTo(map);
@@ -520,9 +533,11 @@ function coordsToGrid(latitude, longitude) {
 
 function updateQTHLocation(lat, long) {
     qthMarker.setLatLng([lat, long])
-    pathLines.forEach((line) => {
+    pathLines.forEach((line) => { 
         var latlon = line.getLatLngs()
-        line.setLatLngs([latlon[0], {lat:lat,lng:long}])
+        
+        var newMidpoint = calculateMidpoint(latlon[1], [lat,long])
+        line.setLatLngs(['M', latlon[1], 'Q', newMidpoint, [lat,long]])
     })
 }
 
