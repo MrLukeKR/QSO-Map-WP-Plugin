@@ -1,0 +1,21 @@
+{
+  "name": "qsomap",
+  "description": "",
+  "main": "blocks/index.js",
+  "authors": [
+    "Luke Rose <37333663+MrLukeKR@users.noreply.github.com>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/MrLukeKR/QSO-Map-WP-Plugin",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "leaflet-slider": "^1.0.5"
+  }
+}

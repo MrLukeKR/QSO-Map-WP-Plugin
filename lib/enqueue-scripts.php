@@ -26,6 +26,8 @@ function enqueue_block_editor_assets() {
     [],
     null
   );
+
+  wp_enqueue_style('L.Icon.Pulse.css', _get_plugin_url() . "/assets/css/L.Icon.Pulse.css", [], null);
 }
 
 add_action('enqueue_block_editor_assets', __NAMESPACE__ . '\enqueue_block_editor_assets');

@@ -2,6 +2,8 @@ import "leaflet.heat"
 import "leaflet-path-flow"
 import '@elfalem/leaflet-curve'
 import "leaflet.fullscreen"
+import "@ansur/leaflet-pulse-icon"
+import "../../bower_components/leaflet-slider/SliderControl.js"
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
@@ -344,9 +346,16 @@ function hideLines() {
     pathLines.forEach((line) => line.remove(map))
 }
 
+function clearLines() {
+    hideLines()
+    pathLines = []
+}
+
 function showHiddenLines() {
     pathLines.forEach((line) => line.addTo(map))
 }
+
+var layerGroup = L.layerGroup([ ]);
 
 function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHeat, showLines) {
     console.log("Generating Map...")
@@ -375,20 +384,25 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHe
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
     
-
     var bounds = []
     var heat = []
     qthMarker = L.marker([qthLatitude, qthLongitude], 
         { 
             title: myCall + "\r\n" + myGrid,
-            draggable: true 
+            draggable: true,
+            icon: L.icon.pulse()
         }).addTo(map);
 
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']
         if (grid && grid != 'null') {
             var coords = gridToCoord(grid)
-            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz" }).addTo(map)
+            var dateStr = log['QSO_DATE']
+            var timeStr = log['TIME_ON']
+            var dateTimeStr = dateStr.slice(0, 4) + "-" + dateStr.slice(4, 6) + "-" + dateStr.slice(6) + " " + timeStr.slice(0, 2) + ":" + timeStr.slice(2, 4) + ":" + timeStr.slice(4) + "+00"
+
+            L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz", time: timeStr }).bindPopup(log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz", {autoClose: false, closeOnClick: false}).addTo(layerGroup)
+            
             bounds.push(coords)
             if (showHeat)
                 heat.push(coords)
@@ -401,6 +415,15 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHe
 
     if (showHeat)
         heatmap = L.heatLayer(heat, {blur:25, radius: 25, maxZoom: 8}).addTo(map)
+
+        layerGroup.addTo(map)
+        var sliderControl = L.control.sliderControl({position: "bottomright", layer: layerGroup, timeAttribute: "time",
+        isEpoch: false,
+        range: true});
+        // sliderControl.addTo(map)
+        //map.addControl(sliderControl)
+    
+        //sliderControl.startSlider()
     loadedMap = true
 }
 

@@ -104,7 +104,8 @@ module.exports = {
   },
   plugins: [
     new webpack.ProvidePlugin({
-      L: 'leaflet'
+      L: 'leaflet',
+      $: 'jquery-ui'
     }),
     // remove erroneous JS files generated from CSS entry points
     new FixStyleOnlyEntriesPlugin(),

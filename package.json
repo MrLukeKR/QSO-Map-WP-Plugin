@@ -23,9 +23,12 @@
     "webpack-fix-style-only-entries": "^0.6.0"
   },
   "dependencies": {
+    "@ansur/leaflet-pulse-icon": "^0.1.1",
     "@babel/preset-env": "^7.20.2",
     "@elfalem/leaflet-curve": "^0.9.1",
     "flatted": "^3.2.7",
+    "jquery": "^3.6.3",
+    "jquery-ui": "^1.13.2",
     "leaflet": "^1.9.3",
     "leaflet-heatmap": "^1.0.0",
     "leaflet-path-flow": "^1.0.0",
