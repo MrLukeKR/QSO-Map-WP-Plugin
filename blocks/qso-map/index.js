@@ -4,6 +4,7 @@ import '@elfalem/leaflet-curve'
 import "leaflet.fullscreen"
 import "@ansur/leaflet-pulse-icon"
 import "../../bower_components/leaflet-slider/SliderControl.js"
+import "bootstrap"
 
 const { __ } = wp.i18n
 const { registerBlockType } = wp.blocks
@@ -138,7 +139,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                             { !uploading ? "Upload Log" : "Uploading"}
                         </Button>
                         <Button 
-                        isSecondary
+                        isTertiary
                         disabled={ uploading }
                         onClick={ null }>
                             Insert from URL
@@ -240,6 +241,7 @@ registerBlockType('m0lxx-qsomap/qsomap', {
 
                 </InspectorControls>
 
+                            <div id="qsologcollection">
                 <div id="mapcollection">
                     <div id="qsomap"></div>
                     <div id="mapcontrol">
@@ -257,12 +259,52 @@ registerBlockType('m0lxx-qsomap/qsomap', {
                         </Button>
                         <Button
                             isSecondary
-                            disabled={ logs.length == 0}
+                            disabled={ true || logs.length == 0} //TODO: Implement time animation
                             onClick={ () => playQSOOrder() }>
                                 { "Play QSO Order" }
                             </Button>
                     </div>
                 </div>
+            </div>
+            { showLog ? 
+            <div className={ props.className }>
+                <h3>Log for { myCall }, {formatLogDate({date: logs[0]["QSO_DATE"], time: logs[0]["TIME_ON"], format: "UK"})} - {formatLogDate({date: logs[logs.length-1]["QSO_DATE"], time: logs[logs.length-1]["TIME_ON"], format: "UK"})}</h3>
+                    <table className="table table-striped">
+                        <tr>
+                            <th>Callsign</th>
+                            <th>Timestamp</th>
+                            <th>Location</th>
+                            <th>Mode</th>
+                            <th>Frequency (MHz)</th>
+                            {showStatistics ? <th>Distance (KM)</th> : null}
+                            <th>Actions</th>
+                            </tr>{
+                    logs.length > 0 && logs.map((log, ind) => {
+                        return <tr key={ind}>
+                            <td>{ log["CALL"] }</td>
+                            <td>{ formatLogDate({date:log["QSO_DATE"], time: log["TIME_ON"], format: "UK" }) }</td>
+                            <td>{ sanitiseGrid(log["GRIDSQUARE"]) }</td>
+                            <td>{ log["MODE"] }</td>
+                            <td>{ log["FREQ"] }</td>
+                            {showStatistics ? <td>{Math.round(calculateDistance(qthGrid, log["GRIDSQUARE"])/10) / 100}</td> : null}
+                            <td>
+                                <Button 
+                            isLink
+                            onClick={ () => zoomToGrid(log["GRIDSQUARE"]) }>
+                                { "Zoom to QTH" }
+                        </Button>
+                        <Button 
+                            isLink
+                            onClick={ () => window.open("https://www.qrz.com/db/" + log["CALL"]) }>
+                                { "Show QRZ" }
+                        </Button>
+                        </td>
+                        </tr>
+                    })
+                    
+                    }
+                    </table>
+                </div> : null}
             </div>
         )        
     }, // End edit()
@@ -281,6 +323,23 @@ registerBlockType('m0lxx-qsomap/qsomap', {
         ) 
     } // End save()
 });
+
+function formatLogDate(options) {
+    if (!options["format"])
+        throw "No format was specified"
+    
+    if(options["format"] == "ISO" && options["date"] && options["time"])
+        return options["date"].slice(0, 4) + "-" + options["date"].slice(4, 6) + "-" + options["date"].slice(6) + " " + options["time"].slice(0, 2) + ":" + options["time"].slice(2, 4) + ":" + options["time"].slice(4) + "+00"
+    if(options["format"] == "UK" && options["date"] && options["time"])
+        return options["date"].slice(6) + "/" + options["date"].slice(4, 6) + "/" + options["date"].slice(0, 4) + " " + options["time"].slice(0, 2) + ":" + options["time"].slice(2, 4) + ":" + options["time"].slice(4)
+}
+
+function calculateDistance(fromGrid, toGrid){
+    var pos1 = gridToCoord(fromGrid)
+    var pos2 = gridToCoord(toGrid)
+
+    return Math.acos(Math.sin(pos1[0])*Math.sin(pos2[0])+Math.cos(pos1[0])*Math.cos(pos2[0])*Math.cos(pos2[1]-pos1[1])) * 6371
+}
 
 function uploadLogFile(event, props){
         var fr=new FileReader();
@@ -399,7 +458,7 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHe
             var coords = gridToCoord(grid)
             var dateStr = log['QSO_DATE']
             var timeStr = log['TIME_ON']
-            var dateTimeStr = dateStr.slice(0, 4) + "-" + dateStr.slice(4, 6) + "-" + dateStr.slice(6) + " " + timeStr.slice(0, 2) + ":" + timeStr.slice(2, 4) + ":" + timeStr.slice(4) + "+00"
+            var dateTimeStr = formatLogDate({date: dateStr, time:timeStr, format: "ISO"})
 
             L.marker(coords, { title: log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz", time: timeStr }).bindPopup(log['CALL'] + "\r\n" + log['MODE'] + "\r\n" + log['FREQ'] + "MHz", {autoClose: false, closeOnClick: false}).addTo(layerGroup)
             
@@ -431,6 +490,12 @@ function generateMapEdit(logs, qthLatitude, qthLongitude, myCall, myGrid, showHe
 function zoomToQTH(){
     console.log("Zooming to QTH...")
     map.flyTo(qthMarker.getLatLng(), 15)
+}
+
+function zoomToGrid(grid){
+    console.log("Zooming to Grid...")
+    var latlng = gridToCoord(grid)
+    map.flyTo({lat: latlng[0], lng: latlng[1]}, 15)
 }
 
 function zoomToBounds() {

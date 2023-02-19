@@ -26,6 +26,8 @@
     "@ansur/leaflet-pulse-icon": "^0.1.1",
     "@babel/preset-env": "^7.20.2",
     "@elfalem/leaflet-curve": "^0.9.1",
+    "@popperjs/core": "^2.11.6",
+    "bootstrap": "5.2.3",
     "flatted": "^3.2.7",
     "jquery": "^3.6.3",
     "jquery-ui": "^1.13.2",
