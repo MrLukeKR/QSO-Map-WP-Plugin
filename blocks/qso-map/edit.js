@@ -50,7 +50,7 @@ export default function Edit( { attributes, setAttributes } ) {
             accept=".adi,.adif"
             onChange={ ( event ) => { 
                 setAttributes({ uploading: true })
-                uploadLogFile(event, setAttributes, attributes)
+                uploadLogFile(event, attributes, setAttributes)
              } }
             render={ ( { openFileDialog } ) => (
                 <div className="inline">
@@ -115,7 +115,7 @@ export default function Edit( { attributes, setAttributes } ) {
                         onChange={() => {
                             setAttributes({ showLines: !showLines })
                             if (showLines && pathLines.length > 0)
-                                hideLines()
+                                hideLines(pathLines, map)
                             else if (!showLines && pathLines.length > 0)
                                 showHiddenLines()
                         }}
@@ -274,7 +274,7 @@ export default function Edit( { attributes, setAttributes } ) {
     )        
 }
 
-function parseLogFile(logfileContents, attributes) {
+function parseLogFile(logfileContents, attributes, setAttributes) {
     const { myCall, showHeatmap, showLines } = attributes
 
     console.log("Parsing log file...")
@@ -335,15 +335,6 @@ function parseLogFile(logfileContents, attributes) {
     })
 }
 
-function hideLines() {
-    pathLines.forEach((line) => line.remove(map))
-}
-
-function clearLines() {
-    hideLines()
-    pathLines = []
-}
-
 function showHiddenLines() {
     pathLines.forEach((line) => line.addTo(map))
 }
@@ -358,10 +349,10 @@ function updateQTHLocation(lat, long) {
     })
 }
 
-function uploadLogFile(event, setAttributes, attributes){
+function uploadLogFile(event, attributes, setAttributes){
     var fr=new FileReader();
 fr.onload=function(){
-    parseLogFile(fr.result, attributes)
+    parseLogFile(fr.result, attributes, setAttributes)
     
     setAttributes({ uploading: false })
 }

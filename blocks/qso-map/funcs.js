@@ -47,8 +47,10 @@ export function generateMap(map, pathLines, setAttributes, logs, qth, myCall, my
         map.remove()
     }
 
-    if (pathLines.length > 0)
-        clearLines()
+    if (pathLines.length > 0) {
+        hideLines(pathLines, map)
+        pathLines = []
+    }
     
     if (logs.length == 0) {
         console.error("No logs!")
@@ -182,14 +184,45 @@ var midpointLatLng = calculateMidpoint(latlng1, latlng2)
 
 export function bandToColour(band){
     switch(band) {
+        /* SHF */
+        case "6cm":
+            return ''
+        case "9cm":
+            return ''
+        case "13cm":
+            return ''
+        case "23cm":
+            return ''
+        
+        /* UHF */
+        case "70cm":
+            return 'green'
+        
+        /* VHF */
+        case "2m":
+            return 'blue'
+        case "4m":
+            return ''
+        case "6m":
+            return ''
+
+        /* HF */
+        case "10m":
+            return ''
+        case "12m":
+            return ''
+        case "15m":
+            return ''
+        case "17m":
+            return ''
         case "20m":
+            return 'red'
+        case "30m":
             return 'red'
         case "40m":
             return 'magenta'
-        case "2m":
-            return 'blue'
-        case "70cm":
-            return 'green'
+        
+        /* Unknown */
         default:
             return 'black'
     }
@@ -205,6 +238,10 @@ export function gridToCoord(grid) {
     var lon = (((sanitisedGrid.charCodeAt(0) - 65) * 20) + (parseInt(sanitisedGrid.charAt(2)) * 2) + (((sanitisedGrid.charCodeAt(4) - 97) / 12) + (1/24))) - 180
 
     return [lat, lon]
+}
+
+function hideLines(pathLines, map) {
+    pathLines.forEach((line) => line.remove(map))
 }
 
 export function sanitiseGrid(grid) {

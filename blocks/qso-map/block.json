@@ -1,0 +1,73 @@
+{
+    "name": "m0lxx-qsomap/qsomap",
+    "title": "QSO Map",
+    "description": "An ADIF log to QSO map tool by M0LXX",
+    "icon": "location-alt",
+    "category": "common",
+    "keywords": [
+        "amateur",
+        "radio",
+        "qso",
+        "map",
+        "mapping"
+    ],
+
+    "supports": {
+        "html": false,
+        "reusable": false,
+        "align": false
+    },
+
+    "attributes": { 
+        "logs": {
+            "type": "array",
+            "default": []
+        },
+        "myCall": {
+            "type": "string"
+        },
+        "qthGrid": {
+          "type": "string"
+        },
+        "originalQthLatitude": {
+            "type": "string",
+            "default": 0
+        },
+        "originalQthLongitude": {
+            "type": "string",
+            "default": 0
+        },
+        "qthLatitude": {
+            "type": "string",
+            "default": 0
+        },
+        "qthLongitude": {
+            "type": "string",
+            "default": 0
+        },
+        "furthestQSODistance": {
+            "type": "string",
+            "default": 0
+        },
+        "furthestQSOStation": {
+            "type": "string",
+            "default": ""
+        },
+        "uploading": {
+            "type": "boolean",
+            "default": false
+        },
+        "showHeatmap": {
+            "type": "boolean"
+        },
+        "showStatistics": {
+            "type": "boolean"
+        },
+        "showLines": {
+            "type": "boolean"
+        },
+        "showLog": {
+            "type": "boolean"
+        }
+    }
+}
