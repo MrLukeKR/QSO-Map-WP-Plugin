@@ -4,5 +4,3 @@
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     die;
 }
-
-delete_option( 'qsomap_openstreetmap_apikey' );
