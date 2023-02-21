@@ -1,4 +1,5 @@
 var layerGroup = L.layerGroup([ ]);
+var map = null
 
 export function formatLogDate(options) {
     if (!options["format"])
@@ -39,10 +40,12 @@ export function getFurthestQSO(qth, logs) {
     return { distance: furthestDistance, station: furthestStation }
 }
 
-export function generateMap(map, pathLines, setAttributes, logs, qth, myCall, myGrid, showHeat, showLines, editMode=false) {
+export function generateMap(pathLines, setAttributes, logs, qth, myCall, myGrid, showHeat, showLines, editMode=false) {
     console.log("Generating Map...")
 
-    if (map) {
+    document.getElementById("qsomap").innerHTML = ""
+
+    if (map != undefined) {
         map.off()
         map.remove()
     }
@@ -65,7 +68,7 @@ export function generateMap(map, pathLines, setAttributes, logs, qth, myCall, my
     }).setView([qth['latitude'], qth['longitude']], 13)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    attribution: '<a target="_blank" href="http://M0LXX.co.uk/qso-map-wp-plugin/">M0LXX WP QSO Map</a> | Map Tiles &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
     
     var bounds = []
@@ -76,6 +79,9 @@ export function generateMap(map, pathLines, setAttributes, logs, qth, myCall, my
             draggable: true,
             icon: L.icon.pulse()
         }).addTo(map);
+
+        layerGroup.off()
+        layerGroup.remove()
 
     logs.forEach((log) => {
         var grid = log['GRIDSQUARE']// ?? getGridsquareFromCallsign(log['CALL']) // TODO: Fix this
@@ -109,7 +115,8 @@ export function generateMap(map, pathLines, setAttributes, logs, qth, myCall, my
         //sliderControl.startSlider()
 
     var furthestQSO = getFurthestQSO(myGrid, logs)
-    setAttributes({ furthestQSODistance: furthestQSO['distance'], furthestQSOStation: furthestQSO['station'] })
+    if(editMode)
+        setAttributes({ furthestQSODistance: furthestQSO['distance'], furthestQSOStation: furthestQSO['station'] })
     
     return { qth: qth, map: map, heatmap: heatmap, qsoBounds: map.getBounds() }
 }
@@ -240,7 +247,7 @@ export function gridToCoord(grid) {
     return [lat, lon]
 }
 
-function hideLines(pathLines, map) {
+export function hideLines(pathLines, map) {
     pathLines.forEach((line) => line.remove(map))
 }
 
@@ -314,4 +321,14 @@ export function getNumberOfGridsquares(logs) {
     })
 
     return gridsquares.length
+}
+
+export function getQSOsPerMinute(logs) {
+    var from = Date.parse(formatLogDate({date: logs[0]['QSO_DATE'], time: logs[0]['TIME_ON'], format: "ISO"}))
+    var to = Date.parse(formatLogDate({date: logs[logs.length-1]['QSO_DATE'], time: logs[logs.length-1]['TIME_ON'], format: "ISO"}))
+    
+    var ms = to - from
+    var s = ms / 60000
+    
+    return Math.round((logs.length / s) * 100) / 100
 }

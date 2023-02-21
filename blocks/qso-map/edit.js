@@ -1,4 +1,4 @@
-import { waitForElm, getNumberOfGridsquares, formatLogDate, sanitiseGrid, calculateDistance, generateMap, calculateMidpoint, coordsToGrid, getFurthestQSO, gridToCoord, zoomToBounds, zoomToGrid, zoomToQTH } from "./funcs"
+import { waitForElm, getNumberOfGridsquares, formatLogDate, sanitiseGrid, calculateDistance, generateMap, calculateMidpoint, coordsToGrid, getFurthestQSO, gridToCoord, zoomToBounds, zoomToGrid, zoomToQTH, hideLines, getQSOsPerMinute } from "./funcs"
 
 const { InspectorControls, useBlockProps } = wp.blockEditor
 const { FormFileUpload, Button, PanelBody, ToggleControl, TextControl } = wp.components
@@ -13,14 +13,15 @@ var pathLines = []
 export default function Edit( { attributes, setAttributes } ) {
     // Pull out specific attributes for clarity below
     const { 
-        originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, furthestQSODistance, furthestQSOStation,
+        originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, 
+        furthestQSODistance, furthestQSOStation, numberOfGridsquares, qsosPerMinute,
         uploading, 
         showHeatmap, showStatistics, showLines, showLog,
         myCall, logs 
     } = attributes
     
     !loadedMap && logs.length > 0 && waitForElm('#qsomap').then(() => { 
-        var ret = generateMap(map, pathLines, setAttributes, logs, { latitude: qthLatitude, longitude: qthLongitude, marker: qthMarker }, myCall, qthGrid, showHeatmap, showLines, true)
+        var ret = generateMap(pathLines, setAttributes, logs, { latitude: qthLatitude, longitude: qthLongitude, marker: qthMarker }, myCall, qthGrid, showHeatmap, showLines, true)
         qthMarker = ret['qth']['marker']
         map = ret['map']
         heatmap = ret['heatmap']
@@ -35,8 +36,6 @@ export default function Edit( { attributes, setAttributes } ) {
             var furthestQSO = getFurthestQSO(grid, logs)
             setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString(), qthGrid: grid, furthestQSODistance: furthestQSO['distance'], furthestQSOStation: furthestQSO['station'] })
         })
-
-        setAttributes({ qsoMap: document.getElementById("qsomap").innerHTML })         
      })
 
     return (
@@ -84,7 +83,7 @@ export default function Edit( { attributes, setAttributes } ) {
                             if (showHeatmap && heatmap != null)
                                 map.removeLayer(heatmap)
                             else if (!showHeatmap && heatmap == null) {
-                                var ret = generateMap(map, pathLines, setAttributes, logs, { latitude: qthLatitude, longitude: qthLongitude, marker: qthMarker }, myCall, qthGrid, !showHeatmap, showLines, true)
+                                var ret = generateMap(pathLines, setAttributes, logs, { latitude: qthLatitude, longitude: qthLongitude, marker: qthMarker }, myCall, qthGrid, !showHeatmap, showLines, true)
                                 qthMarker = ret['qth']['marker']
                                 map = ret['map']
                                 heatmap = ret['heatmap']
@@ -102,6 +101,8 @@ export default function Edit( { attributes, setAttributes } ) {
                         
                              } else if (!showHeatmap && heatmap != null)
                                 map.addLayer(heatmap)
+                            
+                            setAttributes({ qsoMap: document.getElementById("qsomap").innerHTML })    
                         }}
                     ></ToggleControl>
                     <ToggleControl
@@ -228,11 +229,11 @@ export default function Edit( { attributes, setAttributes } ) {
                 </tr>
                 <tr>
                     <th>QSOs Per Minute</th>
-                    <td>{ /* TODO: Calculate this */ }</td>
+                    <td>{ qsosPerMinute }</td>
                 </tr>
                 <tr>
                     <th>Gridsquares</th>
-                    <td>{ getNumberOfGridsquares(logs) }</td>
+                    <td>{ numberOfGridsquares }</td>
                 </tr>
             </table>
         </div> : null}
@@ -316,7 +317,7 @@ function parseLogFile(logfileContents, attributes, setAttributes) {
     console.log("Done parsing...")
 
     logEntries.length > 0 && waitForElm('#qsomap').then(() => { 
-        var ret = generateMap(map, pathLines, setAttributes, logEntries, { latitude: stationCoords[0], longitude: stationCoords[1], marker: qthMarker }, myCall, myGrid, showHeatmap, showLines, true) 
+        var ret = generateMap(pathLines, setAttributes, logEntries, { latitude: stationCoords[0], longitude: stationCoords[1], marker: qthMarker }, myCall, myGrid, showHeatmap, showLines, true) 
         qthMarker = ret['qth']['marker']
         map = ret['map']
         heatmap = ret['heatmap']
@@ -328,11 +329,14 @@ function parseLogFile(logfileContents, attributes, setAttributes) {
             updateQTHLocation(latln['lat'], latln['lng'])
 
             var grid = coordsToGrid(latln['lat'], latln['lng'])
-            var furthestQSO = getFurthestQSO(grid, logs)
+            var furthestQSO = getFurthestQSO(grid, logEntries)
             setAttributes({ qthLatitude: latln['lat'].toString(), qthLongitude: latln['lng'].toString(), qthGrid: grid, furthestQSODistance: furthestQSO['distance'], furthestQSOStation: furthestQSO['station'] })
         })
-
+        
+        setAttributes({ qsoMap: document.getElementById("qsomap").innerHTML })    
     })
+
+    setAttributes({ numberOfGridsquares: getNumberOfGridsquares(logEntries), qsosPerMinute: getQSOsPerMinute(logEntries) })
 }
 
 function showHiddenLines() {

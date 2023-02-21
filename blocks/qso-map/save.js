@@ -1,20 +1,39 @@
 import { getNumberOfGridsquares, formatLogDate, sanitiseGrid, calculateDistance } from "./funcs"
 const { useBlockProps } = wp.blockEditor
-const { Button } = wp.components
+
+var qthMarker = null
 
 export default function save( { attributes } ) {
     const blockProps = useBlockProps.save();
     
     const { 
-        originalQthLatitude, originalQthLongitude, qthLatitude, qthLongitude, qthGrid, furthestQSODistance, furthestQSOStation,
-        uploading, 
+        qthLatitude, qthLongitude, qthGrid, 
+        furthestQSODistance, furthestQSOStation, qsosPerMinute,
         showHeatmap, showStatistics, showLines, showLog,
         myCall, logs 
     } = attributes
 
-    return null
-    
+    console.log("Saving block...")
+    /*
+    !loadedMap && logs.length > 0 && waitForElm('#qsomap').then(() => { 
+        console.log("Generating live map...")
+        var ret = generateMap(pathLines, null, logs, { latitude: qthLatitude, longitude: qthLongitude, marker: null }, myCall, qthGrid, showHeatmap, showLines, false)
+        qthMarker = ret['qth']['marker']
+        map = ret['map']
+        heatmap = ret['heatmap']
+        qsoBounds = ret['qsoBounds']
+        loadedMap = true
+    })
+    */
+
     return <div>
+        <div id="qsologcollection">
+        <div id="mapcollection">
+            <div id="qsomap" style="height: 500px;"></div>
+            <button class="components-button is-secondary" onClick={ 'zoomToCoord(' + qthLatitude + ', ' + qthLongitude + ')' }>Zoom to QTH</button>
+            <button class="components-button is-secondary" onClick="zoomToBounds()">Show All QSOs</button>
+        </div>
+        <br></br>
         { showStatistics ? 
         <div id="statistics">
             <h4>Statistics</h4>
@@ -29,7 +48,7 @@ export default function save( { attributes } ) {
                 </tr>
                 <tr>
                     <th>QSOs Per Minute</th>
-                    <td>{ /* TODO: Calculate this */ }</td>
+                    <td>{ qsosPerMinute }</td>
                 </tr>
                 <tr>
                     <th>Gridsquares</th>
@@ -38,7 +57,7 @@ export default function save( { attributes } ) {
             </table>
         </div> : null}
         { showLog ? 
-        <div /*className={ props.className }*/>
+        <div>
             <h4>Log for { myCall }, {formatLogDate({date: logs[0]["QSO_DATE"], time: logs[0]["TIME_ON"], format: "UK"})} - {formatLogDate({date: logs[logs.length-1]["QSO_DATE"], time: logs[logs.length-1]["TIME_ON"], format: "UK"})}</h4>
                 <table className="table table-striped">
                     <tr>
@@ -49,27 +68,44 @@ export default function save( { attributes } ) {
                         <th>Frequency (MHz)</th>
                         {showStatistics ? <th>Distance (KM)</th> : null}
                         <th>Actions</th>
-                        </tr>{
-                logs.length > 0 && logs.map((log, ind) => {
+                        </tr>
+                        { logs.length > 0 && logs.map((log, ind) => {
                     return <tr key={ind}>
-                        <td><a target="_blank" href={"https://www.qrz.com/db/" + log["CALL"]}>{ log["CALL"] }</a></td>
-                        <td>{ formatLogDate({date:log["QSO_DATE"], time: log["TIME_ON"], format: "UK" }) }</td>
+                        <td><a target="_blank" href={"https://www.qrz.com/db/" + log["CALL"]} rel="noopener">{ log["CALL"] }</a></td>
+                        <td>{ formatLogDate({date: log["QSO_DATE"], time: log["TIME_ON"], format: "UK" }) }</td>
                         <td>{ sanitiseGrid(log["GRIDSQUARE"]) }</td>
                         <td>{ log["MODE"] }</td>
                         <td>{ log["FREQ"] }</td>
                         {showStatistics ? <td>{Math.round(calculateDistance(qthGrid, log["GRIDSQUARE"]) * 100) / 100}</td> : null}
-                        <td>
-                            <Button 
-                        isLink
-                        onClick={ () => zoomToGrid(log["GRIDSQUARE"]) }>
-                            { "Zoom to QTH" }
-                    </Button>
-                    </td>
+                        <td><a href="#" onClick={ "zoomToGrid('" + log['GRIDSQUARE'] + "')"} >Zoom to QTH</a></td>
                     </tr>
                 })
                 
                 }
                 </table>
             </div> : null}
+        </div>
+        
+        <link rel="stylesheet" href="/wp-content/plugins/qso-map/assets/vendor/css/leaflet.css"></link>
+        <link rel="stylesheet" href="/wp-content/plugins/qso-map/assets/vendor/css/L.Icon.Pulse.css"></link>
+        <link rel="stylesheet" href="/wp-content/plugins/qso-map/assets/vendor/css/Control.FullScreen.css"></link>
+
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/leaflet.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/leaflet-heat.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/dashflow.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/leaflet.curve.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/Control.FullScreen.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/vendor/js/L.Icon.Pulse.js"></script>
+        <script type="text/javascript" src="/wp-content/plugins/qso-map/assets/js/livemap.js"></script>
+        <script>
+            var qth = { JSON.stringify({latitude: qthLatitude, longitude: qthLongitude, marker: qthMarker})};
+            var myCall = "{ myCall }";
+            var logs = { JSON.stringify(logs) };
+            var myGrid = "{ qthGrid }";
+            var showHeat = { showHeatmap ? "true" : "false" };
+            var showLines = { showLines ? "true" : "false" };
+            generateMap(logs, qth, myCall, myGrid, showHeat, showLines);
+        </script>
     </div>
 }
+

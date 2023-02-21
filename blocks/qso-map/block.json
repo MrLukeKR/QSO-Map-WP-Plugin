@@ -1,4 +1,6 @@
 {
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 2,
     "name": "m0lxx-qsomap/qsomap",
     "title": "QSO Map",
     "description": "An ADIF log to QSO map tool by M0LXX",
@@ -46,16 +48,24 @@
             "default": 0
         },
         "furthestQSODistance": {
-            "type": "string",
+            "type": "number",
             "default": 0
         },
         "furthestQSOStation": {
             "type": "string",
             "default": ""
         },
+        "qsosPerMinute": {
+            "type": "number",
+            "default": 0
+        },
         "uploading": {
             "type": "boolean",
             "default": false
+        },
+        "numberOfGridsquares": {
+            "type": "number",
+            "default": 0
         },
         "showHeatmap": {
             "type": "boolean"
@@ -69,5 +79,6 @@
         "showLog": {
             "type": "boolean"
         }
-    }
+    },
+    "render": "file:./index.php"
 }

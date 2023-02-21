@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+const CopyPlugin = require("copy-webpack-plugin");
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
@@ -106,6 +107,23 @@ module.exports = {
     new webpack.ProvidePlugin({
       L: 'leaflet',
       $: 'jquery-ui'
+    }),
+    new CopyPlugin({
+      patterns: [
+        { from: require.resolve('./node_modules/leaflet/dist/leaflet.js'), to: "./assets/vendor/js", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet/dist/leaflet.js.map'), to: "./assets/vendor/js", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet.heat/dist/leaflet-heat.js'), to: "./assets/vendor/js", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet-path-flow/dashflow.js'), to: "./assets/vendor/js", context: "node_modules" },
+        { from: require.resolve('./node_modules/@elfalem/leaflet-curve/dist/leaflet.curve.js'), to: "./assets/vendor/js", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet.fullscreen/Control.FullScreen.js'), to: "./assets/vendor/js/", context: "node_modules" },
+        { from: require.resolve('./node_modules/@ansur/leaflet-pulse-icon/dist/L.Icon.Pulse.js'), to: "./assets/vendor/js", context: "node_modules" },
+
+        { from: require.resolve('./node_modules/leaflet/dist/leaflet.css'), to: "./assets/vendor/css", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet.fullscreen/Control.FullScreen.css'), to: "./assets/vendor/css/", context: "node_modules" },
+        { from: require.resolve('./node_modules/leaflet.fullscreen/icon-fullscreen.svg'), to: "./assets/vendor/css/", context: "node_modules" },
+        { from: './leaflet/dist/images', to: "./assets/vendor/css/images", context: "node_modules" },
+        { from: require.resolve('./node_modules/@ansur/leaflet-pulse-icon/dist/L.Icon.Pulse.css'), to: "./assets/vendor/css", context: "node_modules" }
+      ]
     }),
     // remove erroneous JS files generated from CSS entry points
     new FixStyleOnlyEntriesPlugin(),

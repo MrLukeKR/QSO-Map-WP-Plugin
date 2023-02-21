@@ -33,4 +33,4 @@ function _get_plugin_url() {
 include __DIR__ . '/lib/enqueue-scripts.php';
 
 // Load dynamic blocks
-include __DIR__ . '/blocks/qso-map/index.php';
+//include __DIR__ . '/blocks/qso-map/index.php';
